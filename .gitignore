@@ -1,0 +1,19 @@
+# secrets and user data: never commit
+.env
+data/
+*.txt
+*.zip
+*.db
+!requirements.txt
+!wa/system_prompt.txt
+!tests/fixtures/*.txt
+!tests/fixtures/*.zip
+
+# python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# old drafts
+_archive/

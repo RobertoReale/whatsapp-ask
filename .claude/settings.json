@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "Bash(pytest *)",
+      "Bash(pip install *)",
+      "Bash(python *)",
+      "Bash(.venv/Scripts/python *)",
+      "Bash(.venv/Scripts/python.exe *)",
+      "Bash(.venv/Scripts/pytest *)",
+      "Bash(.venv/bin/python *)",
+      "Bash(.venv/bin/pytest *)",
+      "Bash(git init)",
+      "Bash(git status)",
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git add *)",
+      "Bash(git commit *)"
+    ],
+    "deny": [
+      "Read(./data/**)",
+      "Read(./.env)",
+      "Read(./_archive/**)",
+      "Bash(git push *)"
+    ]
+  }
+}
