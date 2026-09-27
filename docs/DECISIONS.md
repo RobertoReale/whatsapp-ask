@@ -90,3 +90,14 @@ Smoke test (Phase A1): `claude-sonnet-5` answered "hi" with 8 input and 14 outpu
 - `OUTPUT_ALLOWANCE` in the cost estimate went from 2,000 to 1,000 tokens: real short answers used 40–200 output tokens, and 2,000 made follow-ups look ten times dearer than they were.
 - Streamlit Markdown treats text between two `$` as a LaTeX formula (the user saw "0.17 ** for the first question" in italics), so dollar amounts are written as `\$`.
 - Tests never load the real `.env`: the app fixture replaces `dotenv.load_dotenv` and removes the key.
+
+## 2026-09-27: checks with real chats (Phase A4)
+
+The user ran the API engine (`claude-sonnet-5`) on their real 1:1 chat (1,794 messages) and sent screenshots:
+
+- Exact size: 65,976 tokens (`count_tokens`). The local estimate `len * 2 // 3` gives about 72,000, so it stays a slight overestimate.
+- First question: $0.1718, eight valid citations. Follow-ups: $0.0162 and $0.0214, each with 65,971 tokens read from the cache, about ten times cheaper.
+- A question about something not in the chat got "I find no messages about…", with nothing invented. A follow-up ("and at what time?") stayed coherent and cited the messages it reasoned from.
+- The big group (9,115 messages) counts 303,301 tokens with Haiku 4.5's older tokenizer, so Haiku is blocked, and the error suggests `claude-sonnet-5` or `claude-opus-5-5`.
+- As in Milestone 1, the user checked a few representative questions instead of the whole table.
+- `.env` is ignored and has never been in any commit.

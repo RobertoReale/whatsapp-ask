@@ -95,9 +95,9 @@ new_session = messages + [{"role": "assistant", "content": final.content}]
 
 ## Phase A4: Checks
 
-- [ ] Re-run the Milestone 1 real-chat table with the API engine.
-- [ ] A follow-up within 5 minutes shows `cache_read_input_tokens > 0` and a much lower cost.
-- [ ] `.env` never in git; `git status` clean.
+- [x] Re-run the Milestone 1 real-chat table with the API engine.
+- [x] A follow-up within 5 minutes shows `cache_read_input_tokens > 0` and a much lower cost.
+- [x] `.env` never in git; `git status` clean.
 
 ## Optional experiment: Citations API
 
