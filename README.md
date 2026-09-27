@@ -1,13 +1,13 @@
 # WhatsApp Ask
 
-Ask Claude questions about your own WhatsApp chats. You export a chat from your phone, import it here, choose chats and dates, and ask. Every answer cites the original messages, and you can open each one with the messages around it.
+Ask Claude questions about your own WhatsApp chats. You export a chat from your phone, import it here, choose chats and dates, and ask. Every answer cites the original messages, and you can open each one with the messages around it. You can save the messages it finds as CSV (Excel), TXT or Markdown, or search the chats for an exact word without Claude.
 
 It runs on your computer and can use Claude in two ways, which you pick in the sidebar:
 
 - **Claude subscription** (default): your **Claude Pro or Max plan** through Claude Code. No API key and no extra cost; questions use your plan's usage limits.
 - **Claude API (paid)**, optional: your own Anthropic API key. Every question costs a little money, and the app shows the cost before and after each question. See [the paid API](#optional-the-paid-claude-api).
 
-The app also explains these choices on its main page, under **How to choose the engine and the model**.
+The app also explains these choices on its main page, under **How to use it: what you can do, engine and model**.
 
 ## 1. Export a chat from your phone
 
@@ -66,7 +66,7 @@ Every question uses part of your plan's usage limits. These are the same limits 
 - The first question sends **all the selected messages** to Claude. That is what the usage level shows: a large selection uses a large share of your limits on every new conversation.
 - Follow-up questions continue the conversation. Claude Code keeps the messages in a short-lived cache, so follow-ups within about an hour usually weigh less.
 - When the limit is reached, the app says so. Wait for the reset, or select less.
-- The app never uses an API key. If `ANTHROPIC_API_KEY` is set on your computer, the app ignores it, so you are never billed through the paid API.
+- The subscription engine never uses an API key. Even if `ANTHROPIC_API_KEY` is set (for example in `.env` for the paid engine), it is not passed to Claude Code, so subscription questions are never billed through the paid API.
 
 ## Optional: the paid Claude API
 
