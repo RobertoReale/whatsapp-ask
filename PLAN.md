@@ -195,20 +195,20 @@ def parse_export(path: str) -> list[dict]:
 
 ## Phase 4: Subscription engine (`wa/engines/subscription.py`, `wa/citations.py`)
 
-- [ ] `wa/system_prompt.txt` with the prompt below.
-- [ ] `wa/engines/subscription.py` implements the engine contract in `CLAUDE.md`: `NAME = "Claude subscription (claude -p)"`, `MODELS = ["sonnet", "haiku"]`, `TOKEN_BUDGET = {"sonnet": 150_000, "haiku": 150_000}`. Start from the code below, which was verified end to end on 2026-09-26 (Italian question, emoji, follow-up with `--resume`).
-- [ ] First question: stdin = transcript + blank line + `Today is DD/MM/YYYY.` + blank line + question. Follow-ups: stdin = `Today is ...` + question only, plus `--resume <session>`.
-- [ ] Errors raise `EngineError` with clear English messages:
+- [x] `wa/system_prompt.txt` with the prompt below.
+- [x] `wa/engines/subscription.py` implements the engine contract in `CLAUDE.md`: `NAME = "Claude subscription (claude -p)"`, `MODELS = ["sonnet", "haiku"]`, `TOKEN_BUDGET = {"sonnet": 150_000, "haiku": 150_000}`. Start from the code below, which was verified end to end on 2026-09-26 (Italian question, emoji, follow-up with `--resume`).
+- [x] First question: stdin = transcript + blank line + `Today is DD/MM/YYYY.` + blank line + question. Follow-ups: stdin = `Today is ...` + question only, plus `--resume <session>`.
+- [x] Errors raise `EngineError` with clear English messages:
   - `claude` not found: "Claude Code is not installed or not on PATH. Install it and log in with your Pro/Max account."
   - `api_error_status` 401/403, or text about login/auth: "Claude Code is not logged in. Run `claude` once in a terminal and log in."
   - `api_error_status` 429, or text about usage/rate limit: "Your plan's usage limit is reached. Try again after it resets."
   - `subprocess.TimeoutExpired` (600 s): "Claude took too long. Select fewer chats or a shorter date range."
   - Anything else: the first 500 characters of `result`/stderr.
-- [ ] `wa/engines/__init__.py`: `ENGINES = {"subscription": subscription}`.
-- [ ] `wa/citations.py`: `extract_citations(text, valid_ids) -> list[int]` with regex `\[#(\d+)\]` (also matches `[#12][#13]`), drops IDs not in the selection, removes duplicates keeping order.
-- [ ] Unit tests with a fake `runner` (a function that records its arguments and returns an object with `returncode`, `stdout`, `stderr`): command flags (`--tools` followed by `""`, `--safe-mode`, `--system-prompt-file`, `--output-format json`, no positional prompt, `--resume` only on follow-ups), `ANTHROPIC_API_KEY` and `CLAUDECODE` removed from `env`, `cwd` outside the project, `encoding="utf-8"`, transcript on stdin only for the first question, each error case, citation extraction.
-- [ ] `@pytest.mark.live` tests on the large fixture: an answer contains at least one valid citation; a follow-up with the returned `session` stays coherent with the first answer; the injection fixture does not make Claude answer "HACKED".
-- [ ] Calibrate: in the summary, report the real `usage` input tokens next to `estimate_tokens()` for the large fixture.
+- [x] `wa/engines/__init__.py`: `ENGINES = {"subscription": subscription}`.
+- [x] `wa/citations.py`: `extract_citations(text, valid_ids) -> list[int]` with regex `\[#(\d+)\]` (also matches `[#12][#13]`), drops IDs not in the selection, removes duplicates keeping order.
+- [x] Unit tests with a fake `runner` (a function that records its arguments and returns an object with `returncode`, `stdout`, `stderr`): command flags (`--tools` followed by `""`, `--safe-mode`, `--system-prompt-file`, `--output-format json`, no positional prompt, `--resume` only on follow-ups), `ANTHROPIC_API_KEY` and `CLAUDECODE` removed from `env`, `cwd` outside the project, `encoding="utf-8"`, transcript on stdin only for the first question, each error case, citation extraction.
+- [x] `@pytest.mark.live` tests on the large fixture: an answer contains at least one valid citation; a follow-up with the returned `session` stays coherent with the first answer; the injection fixture does not make Claude answer "HACKED".
+- [x] Calibrate: in the summary, report the real `usage` input tokens next to `estimate_tokens()` for the large fixture.
 
 ```python
 import json
