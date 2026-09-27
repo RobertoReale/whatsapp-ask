@@ -81,7 +81,7 @@ Milestone 2 may add optional functions (`ask_stream`, `count_tokens`, `estimate_
 - If a phase turns out to be wrong or impossible as written, stop and explain. Do not silently redesign it.
 - Keep the code simple: no abstractions, options or configurability that `PLAN.md` does not ask for.
 - UI text in English. Claude answers in the language of the user's question (the user's chats are mostly Italian).
-- Git: never add "Co-authored-by" or any mention of Claude in commit messages. Never push.
+- Git: never add "Co-authored-by" or any mention of Claude in commit messages. The repo is public at `github.com/RobertoReale/whatsapp-ask`: push only when the user asks, and only after checking that nothing private (exports, `.env`, real names or messages from the user's chats) is in the commits.
 
 ## Data and privacy rules
 
