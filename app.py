@@ -8,12 +8,14 @@ from datetime import date, datetime
 from pathlib import Path
 
 import streamlit as st
+from dotenv import load_dotenv
 
 from wa.citations import extract_citations
 from wa.context import build_transcript, estimate_tokens, usage_level
 from wa.engines import ENGINES
 from wa.store import connect, get_context, get_messages, import_chat, list_chats
 
+load_dotenv(Path(__file__).with_name(".env"))   # ANTHROPIC_API_KEY for the API engine; the subscription engine drops it
 DATA_DIR = Path("data")
 TRUNCATED_AT = 39_000          # an export holds at most about 40,000 messages
 engine = ENGINES["subscription"]

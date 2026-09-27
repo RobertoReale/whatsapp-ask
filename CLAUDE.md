@@ -6,8 +6,8 @@ One project, two AI engines behind the same interface:
 
 | Milestone | Engine | How it calls Claude | Status |
 | --- | --- | --- | --- |
-| 1 | `subscription` (the "web chat" version) | `claude -p` (Claude Code, non-interactive) with the user's Pro/Max subscription. No API key. | **Active**: `PLAN.md` |
-| 2 | `api` | Anthropic Python SDK with a paid API key | **Future**: `docs/PLAN-API.md`. Do not implement until the user explicitly starts Milestone 2. |
+| 1 | `subscription` (the "web chat" version) | `claude -p` (Claude Code, non-interactive) with the user's Pro/Max subscription. No API key. | **Complete**: `PLAN.md` |
+| 2 | `api` | Anthropic Python SDK with a paid API key | **Active** (started by the user on 2026-09-27): `docs/PLAN-API.md` |
 
 Read `PLAN.md` before starting any work. `docs/DECISIONS.md` lists facts that were verified by hand and the reasons behind non-obvious choices. Do not undo those choices without asking.
 
@@ -20,7 +20,7 @@ Read `PLAN.md` before starting any work. `docs/DECISIONS.md` lists facts that we
 - Claude Code CLI `claude -p` as the AI engine
 - pytest
 
-Runtime dependencies: `streamlit` only (`pytest` for development). Ask before adding any other dependency.
+Runtime dependencies: `streamlit`, plus `anthropic` and `python-dotenv` for the API engine (`pytest` for development). Ask before adding any other dependency.
 
 ## Commands
 
@@ -31,7 +31,9 @@ pip install -r requirements.txt
 streamlit run app.py              # start the app
 pytest                            # unit tests (never call Claude)
 pytest -m live                    # tests that really call `claude -p` (use some of the plan's usage limits)
+pytest -m api                     # tests that call the paid Anthropic API (cost money; need .env)
 python scripts/smoke_test.py      # one tiny real call, prints the raw JSON
+python scripts/smoke_test_api.py  # one tiny paid API call, prints the answer and usage
 ```
 
 ## Layout
@@ -47,6 +49,8 @@ wa/engines/__init__.py        # ENGINES registry: {"subscription": ...} (+ "api"
 wa/engines/subscription.py    # Milestone 1: `claude -p`
 wa/engines/api.py             # Milestone 2 only: Anthropic SDK
 scripts/smoke_test.py         # one real `claude -p` call
+scripts/smoke_test_api.py     # one real Anthropic API call (Milestone 2)
+.env.example                  # template for .env (ANTHROPIC_API_KEY); .env is never in git, never read by Claude
 tests/fixtures/               # synthetic chats only
 tests/                        # pytest
 data/                         # user's exports and wa.db: NEVER in git, never read by Claude

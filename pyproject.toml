@@ -1,7 +1,8 @@
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
-addopts = "-m 'not live'"
+addopts = "-m 'not live and not api'"
 markers = [
     "live: calls the real claude CLI",
+    "api: calls the paid Anthropic API",
 ]

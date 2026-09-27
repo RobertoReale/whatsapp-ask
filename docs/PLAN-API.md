@@ -1,6 +1,6 @@
 # PLAN-API.md: Milestone 2, paid API engine
 
-**Status: future.** Start only when the user explicitly says so, and only after Milestone 1 (`PLAN.md`) is complete. Before starting, re-check every model fact below against the live Anthropic docs (models, pricing, caching minimums). They were correct on 2026-09-26 but change over time.
+**Status: active** (started by the user on 2026-09-27). Start only when the user explicitly says so, and only after Milestone 1 (`PLAN.md`) is complete. Before starting, re-check every model fact below against the live Anthropic docs (models, pricing, caching minimums). They were correct on 2026-09-26 but change over time.
 
 Goal: add a second engine, `api`, that calls Claude through the Anthropic Python SDK with the user's API key. It reuses everything from Milestone 1 (parser, store, context, citations, system prompt, UI) and adds exact token counts, cost estimates, streaming and a larger budget (1M context on Sonnet 5). The subscription engine stays; the user picks the engine in the sidebar.
 
@@ -31,10 +31,10 @@ Prices are USD per million tokens. Keep them in one dict in `wa/engines/api.py`.
 
 ## Phase A1: Setup
 
-- [ ] Dependencies, `.env.example`, `python-dotenv` loading in `app.py`.
-- [ ] Pytest marker `api` ("calls the paid Anthropic API"), and `addopts = "-m 'not live and not api'"`.
-- [ ] `scripts/smoke_test_api.py`: one call to `claude-sonnet-5` answering "hi" that prints `usage`.
-- [ ] In the summary, remind the user to (a) check the input-tokens-per-minute limit for Sonnet 5 on the Claude Console Limits page (new accounts can have low limits, and a large chat can exceed them in one request), and (b) set a monthly spend limit.
+- [x] Dependencies, `.env.example`, `python-dotenv` loading in `app.py`.
+- [x] Pytest marker `api` ("calls the paid Anthropic API"), and `addopts = "-m 'not live and not api'"`.
+- [x] `scripts/smoke_test_api.py`: one call to `claude-sonnet-5` answering "hi" that prints `usage`.
+- [x] In the summary, remind the user to (a) check the input-tokens-per-minute limit for Sonnet 5 on the Claude Console Limits page (new accounts can have low limits, and a large chat can exceed them in one request), and (b) set a monthly spend limit.
 
 **Done when:** the smoke test prints an answer and `usage`, and `pytest` is green.
 
@@ -89,6 +89,7 @@ new_session = messages + [{"role": "assistant", "content": final.content}]
 - [ ] If the engine has `count_tokens`, show exact tokens instead of the estimate. If it has `estimate_cost`, show the estimated cost of the first question and of follow-ups.
 - [ ] If the engine has `ask_stream`, stream the answer with `st.write_stream`.
 - [ ] Under each API answer, the real cost of that question.
+- [ ] In-app guidance (asked by the user on 2026-09-27), so someone who only opens the GUI knows what to choose: what each engine is and what it costs (plan limits vs. paid credits), which model fits which question and selection size, how dates and fewer chats save limits or money, that follow-ups are cheaper, and that new conversations resend all the messages.
 
 **Done when:** the user can switch engines and both work end to end.
 

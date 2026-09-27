@@ -55,3 +55,17 @@ The `[#ID] dd/mm/yy hh:mm` header on every line makes transcripts much denser th
 
 - **Opus** was added as a third model at the user's request (`MODELS = ["sonnet", "haiku", "opus"]`; `sonnet` stays the default). A real `claude -p --model opus` call with the app's flags works on the user's plan: the model is `claude-opus-5`, with a 1,000,000-token context window, so `TOKEN_BUDGET["opus"]` is 600,000 like Sonnet. Opus uses the plan's limits faster, so the UI says so.
 - **Empty messages**: real Android exports contain lines like `14/09/26, 18:05 - Anna: ` with nothing after the colon (272 of 9,115 and 70 of 1,794 messages in the user's two chats; probably content WhatsApp does not export, such as view-once media). The parser is right to keep them as messages with empty text. The UI shows them as "(no text in the export)".
+
+## 2026-09-27: Milestone 2 started, model facts re-checked
+
+Re-checked on the live Anthropic docs (models overview, pricing, prompt caching) before Phase A1. The facts in `docs/PLAN-API.md` still hold:
+
+- `claude-sonnet-5`: 1M context, $2 input / $2.50 5-min cache write / $0.20 cache read / $10 output per million tokens, minimum cacheable prefix 1,024 tokens. The $2/$10 price is now the standard price (the planned rise to $3/$15 was cancelled).
+- `claude-haiku-4-5` (alias of `claude-haiku-4-5-20251001`): 200K context, $1 / $1.25 / $0.10 / $5, minimum cacheable prefix 4,096 tokens.
+- The full 1M context is billed at the standard rate (no long-context surcharge).
+
+New since the plan was written: **Claude Opus 5.5** (`claude-opus-5-5`: 1M context, $4 / $5 / $0.20 / $20, minimum cacheable prefix 512, adaptive thinking always on). The plan's API engine offers Sonnet 5 and Haiku 4.5 only; adding Opus 5.5 is the user's call.
+
+SDK versions installed: `anthropic` 1.8.0, `python-dotenv` 1.2.3. Without a key, the SDK raises a `TypeError` ("Could not resolve authentication method"), not an `AnthropicError`, so code must check `ANTHROPIC_API_KEY` itself before calling.
+
+Smoke test (Phase A1): `claude-sonnet-5` answered "hi" with 8 input and 14 output tokens (`thinking_tokens` 0). `usage` now also has `cache_creation` (5-min and 1-hour split), `inference_geo`, `output_tokens_details.thinking_tokens` and `service_tier`. An **organization-level** API key fails with 400 "This API key is not scoped to a workspace" unless every request sends the `anthropic-workspace-id` header, and the SDK does not read a workspace ID from the environment. So the README tells the user to create the key inside a workspace (for example "Default"); the code stays unchanged.
