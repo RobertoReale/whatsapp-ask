@@ -47,7 +47,7 @@ wa/citations.py               # extract [#id] citations from answers
 wa/system_prompt.txt          # instructions for Claude when answering about chats (shared by all engines)
 wa/engines/__init__.py        # ENGINES registry: {"subscription": ...} (+ "api" in Milestone 2)
 wa/engines/subscription.py    # Milestone 1: `claude -p`
-wa/engines/api.py             # Milestone 2 only: Anthropic SDK
+wa/engines/api.py             # Milestone 2: Anthropic SDK with the user's API key (paid)
 scripts/smoke_test.py         # one real `claude -p` call
 scripts/smoke_test_api.py     # one real Anthropic API call (Milestone 2)
 .env.example                  # template for .env (ANTHROPIC_API_KEY); .env is never in git, never read by Claude
@@ -73,7 +73,7 @@ def ask(transcript: str, question: str, session=None, model: str | None = None) 
     The app stores `session` without looking inside it."""
 ```
 
-Milestone 2 may add optional functions (`ask_stream`, `count_tokens`, `estimate_cost`). The app checks for them with `hasattr`. Do not add anything else to the contract.
+Milestone 2 may add optional functions (`ask_stream`, `count_tokens`, `estimate_cost`). The app checks for them with `hasattr`. The API engine's results also carry `cost_usd` (the app reads it with `.get`). Do not add anything else to the contract.
 
 ## Working rules
 
@@ -102,6 +102,17 @@ All of these were verified on 2026-09-26 with Claude Code 2.1.221 on Windows; se
 - Follow-ups: `--resume <session_id>`, with only the new question on stdin. Changing the selected chats, dates, model or engine starts a new conversation.
 - Treat the result as failed if `returncode != 0` **or** `is_error` is true in the JSON. `api_error_status` holds the HTTP status (e.g. 429 = plan limit reached).
 
+## Rules for calling Claude (API engine)
+
+Verified on 2026-09-27 with `anthropic` 1.8.0; see `docs/DECISIONS.md` and `docs/PLAN-API.md`.
+
+- Models: `claude-sonnet-5` (default, 1M context), `claude-haiku-4-5` (200K), `claude-opus-5-5` (1M). Prices live in one dict, `PRICES`, in `wa/engines/api.py`. Re-check them on the live docs before changing anything.
+- Never send `temperature`, `top_p`, `top_k` (400 on Sonnet 5), `thinking` (adaptive by default on Sonnet 5, always on for Opus 5.5) or an assistant prefill.
+- `system` = the shared system prompt, then the transcript with `cache_control: {"type": "ephemeral"}`. Nothing variable in `system`: today's date goes in the user message.
+- Every answer call streams, with `max_tokens=32000`. The session is the message list, append-only: the assistant turn is stored exactly as returned (`final.content`, thinking blocks included).
+- Without `ANTHROPIC_API_KEY` the SDK raises a `TypeError`, so the engine checks the key itself. Keys must belong to a workspace (an organization-level key gets a 400).
+- Unit tests pass a fake `client`. Real calls are marked `@pytest.mark.api` and excluded by default.
+
 ## Out of scope
 
-Direct connection to WhatsApp Web/Desktop, unofficial libraries (whatsmeow, Baileys, whatsapp-web.js), vector databases or embeddings, images and voice notes, sending messages, user accounts, server deployment, and (until Milestone 2) the paid API.
+Direct connection to WhatsApp Web/Desktop, unofficial libraries (whatsmeow, Baileys, whatsapp-web.js), vector databases or embeddings, images and voice notes, sending messages, user accounts, and server deployment.

@@ -69,3 +69,17 @@ New since the plan was written: **Claude Opus 5.5** (`claude-opus-5-5`: 1M conte
 SDK versions installed: `anthropic` 1.8.0, `python-dotenv` 1.2.3. Without a key, the SDK raises a `TypeError` ("Could not resolve authentication method"), not an `AnthropicError`, so code must check `ANTHROPIC_API_KEY` itself before calling.
 
 Smoke test (Phase A1): `claude-sonnet-5` answered "hi" with 8 input and 14 output tokens (`thinking_tokens` 0). `usage` now also has `cache_creation` (5-min and 1-hour split), `inference_geo`, `output_tokens_details.thinking_tokens` and `service_tier`. An **organization-level** API key fails with 400 "This API key is not scoped to a workspace" unless every request sends the `anthropic-workspace-id` header, and the SDK does not read a workspace ID from the environment. So the README tells the user to create the key inside a workspace (for example "Default"); the code stays unchanged.
+
+## 2026-09-27: API engine (Phase A2)
+
+- **Opus 5.5 added** at the user's request: `MODELS = ["claude-sonnet-5", "claude-haiku-4-5", "claude-opus-5-5"]`, budget 800,000 like Sonnet 5. Opus 5.5 thinking cannot be turned off, and its thinking blocks are tied to the model and the conversation; the app already starts a new conversation when the model changes.
+- `pytest -m api` on the 150-message fixture, first question then a follow-up:
+
+| Model | Cached prefix (tokens) | First question | Follow-up |
+| --- | --- | --- | --- |
+| `claude-sonnet-5` | 5,797 (cache write) | $0.0152 | $0.0019 (cache read) |
+| `claude-haiku-4-5` | 4,920 | $0.0064 | $0.0007 |
+| `claude-opus-5-5` | 5,797 | $0.0324 | $0.0029 |
+
+  Haiku 4.5 uses the older tokenizer, so the same text counts about 15% fewer tokens. The local estimate `len * 2 // 3` gives about 6,200 for this fixture, so it stays a slight overestimate for every model.
+- Usage and real cost of every answer are printed to the console (the `start.bat` window), and shown under each answer in the UI (Phase A3).

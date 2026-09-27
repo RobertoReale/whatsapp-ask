@@ -6,7 +6,7 @@ from types import SimpleNamespace
 import pytest
 
 from wa.citations import extract_citations
-from wa.engines import ENGINES, subscription
+from wa.engines import ENGINES, api, subscription
 from wa.engines.subscription import EngineError, ask
 
 PROJECT = Path(__file__).resolve().parent.parent
@@ -46,7 +46,7 @@ def fake_which(monkeypatch):
 
 
 def test_contract():
-    assert ENGINES == {"subscription": subscription}
+    assert ENGINES == {"subscription": subscription, "api": api}
     assert subscription.NAME == "Claude subscription (claude -p)"
     assert subscription.MODELS == ["sonnet", "haiku", "opus"]
     assert subscription.TOKEN_BUDGET == {"sonnet": 600_000, "haiku": 150_000, "opus": 600_000}

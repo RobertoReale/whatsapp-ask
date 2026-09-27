@@ -40,16 +40,16 @@ Prices are USD per million tokens. Keep them in one dict in `wa/engines/api.py`.
 
 ## Phase A2: API engine (`wa/engines/api.py`)
 
-- [ ] `build_system(transcript)`: `[{"type": "text", "text": <system_prompt.txt>}, {"type": "text", "text": transcript, "cache_control": {"type": "ephemeral"}}]`. The transcript goes in `system` for this engine, so change the first line of the shared system prompt to "The transcript is provided with this conversation" (true for both engines).
-- [ ] Nothing variable in `system` (it would break the cache): today's date goes in the user message, as in Milestone 1.
-- [ ] `session` for this engine = the message history list (opaque to the app). History is **append-only**: store the assistant turn exactly as returned (`final_message.content`, thinking blocks included) and never edit earlier turns. Changing chats, dates, model or engine starts a new conversation.
-- [ ] `ask_stream(transcript, question, session, model)` yields text chunks and, at the end, makes available `{"text", "session", "usage", "cost_usd"}` (e.g. a small generator wrapper object, or a callback). `ask()` wraps it for the contract.
-- [ ] `count_tokens(transcript, model)` via `client.messages.count_tokens` (free) with the same `system` and a dummy user message. Cache it in the UI with `st.cache_data` (Streamlit reruns the script on every interaction).
-- [ ] `estimate_cost(tokens, model)`: first question (cache write) and follow-ups (cache read), plus a rough output allowance.
-- [ ] Log real `usage` per answer (`cache_creation_input_tokens`, `cache_read_input_tokens`, `input_tokens`, `output_tokens`) and the real cost.
-- [ ] Errors with the SDK's typed exceptions, most specific first: `AuthenticationError` (bad key), `RateLimitError` (suggest a smaller selection or waiting), `APIStatusError`, `APIConnectionError`, raised as `EngineError`.
-- [ ] Unit tests with a fake client: request shape (system blocks, `cache_control`, `max_tokens`, no sampling params, date in the user message), append-only history, cost math.
-- [ ] `@pytest.mark.api` tests on the large fixture (it must be over 1,024 tokens, or caching silently does nothing): at least one valid citation; the second question has `cache_read_input_tokens > 0`.
+- [x] `build_system(transcript)`: `[{"type": "text", "text": <system_prompt.txt>}, {"type": "text", "text": transcript, "cache_control": {"type": "ephemeral"}}]`. The transcript goes in `system` for this engine, so change the first line of the shared system prompt to "The transcript is provided with this conversation" (true for both engines).
+- [x] Nothing variable in `system` (it would break the cache): today's date goes in the user message, as in Milestone 1.
+- [x] `session` for this engine = the message history list (opaque to the app). History is **append-only**: store the assistant turn exactly as returned (`final_message.content`, thinking blocks included) and never edit earlier turns. Changing chats, dates, model or engine starts a new conversation.
+- [x] `ask_stream(transcript, question, session, model)` yields text chunks and, at the end, makes available `{"text", "session", "usage", "cost_usd"}` (e.g. a small generator wrapper object, or a callback). `ask()` wraps it for the contract.
+- [x] `count_tokens(transcript, model)` via `client.messages.count_tokens` (free) with the same `system` and a dummy user message. Cache it in the UI with `st.cache_data` (Streamlit reruns the script on every interaction).
+- [x] `estimate_cost(tokens, model)`: first question (cache write) and follow-ups (cache read), plus a rough output allowance.
+- [x] Log real `usage` per answer (`cache_creation_input_tokens`, `cache_read_input_tokens`, `input_tokens`, `output_tokens`) and the real cost.
+- [x] Errors with the SDK's typed exceptions, most specific first: `AuthenticationError` (bad key), `RateLimitError` (suggest a smaller selection or waiting), `APIStatusError`, `APIConnectionError`, raised as `EngineError`.
+- [x] Unit tests with a fake client: request shape (system blocks, `cache_control`, `max_tokens`, no sampling params, date in the user message), append-only history, cost math.
+- [x] `@pytest.mark.api` tests on the large fixture (it must be over 1,024 tokens, or caching silently does nothing): at least one valid citation; the second question has `cache_read_input_tokens > 0`.
 
 Starter code:
 
