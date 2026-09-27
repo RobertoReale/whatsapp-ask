@@ -115,3 +115,7 @@ WhatsApp Ask is for your own personal use on your own computer. Messages are sen
 ## For developers
 
 See `CLAUDE.md`, `PLAN.md` and `docs/PLAN-API.md`. Unit tests never call Claude: `pytest`. Real calls: `pytest -m live` (uses some of your plan's usage limits) and `pytest -m api` (paid, a few cents).
+
+## License
+
+MIT, see [LICENSE](LICENSE).
