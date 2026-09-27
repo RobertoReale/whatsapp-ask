@@ -138,8 +138,8 @@ def test_cost_math():
     assert cost_usd(u, "claude-opus-5-5") == pytest.approx(4 + 20 + 5 + 0.2)
 
     est = estimate_cost(400_000, "claude-sonnet-5")
-    assert est["first"] == pytest.approx((400_000 * 2.5 + 2_000 * 10) / 1e6)       # about $1.02
-    assert est["follow_up"] == pytest.approx((400_000 * 0.2 + 2_000 * 10) / 1e6)   # about $0.10
+    assert est["first"] == pytest.approx((400_000 * 2.5 + 1_000 * 10) / 1e6)       # about $1.01
+    assert est["follow_up"] == pytest.approx((400_000 * 0.2 + 1_000 * 10) / 1e6)   # about $0.09
     assert est["follow_up"] < est["first"] / 5
 
 

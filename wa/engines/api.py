@@ -20,7 +20,7 @@ PRICES = {   # USD per million tokens (2026-09-27): input, 5-minute cache write,
     "claude-opus-5-5": {"input": 4.00, "cache_write": 5.00, "cache_read": 0.20, "output": 20.00},
 }
 MAX_TOKENS = 32_000          # thinking tokens count toward this and are billed as output
-OUTPUT_ALLOWANCE = 2_000     # rough output (thinking + answer) per question, for cost estimates
+OUTPUT_ALLOWANCE = 1_000     # rough output (thinking + answer) per question; real short answers: 40-200 tokens
 
 PROMPT_FILE = Path(__file__).resolve().parent.parent / "system_prompt.txt"
 SYSTEM_PROMPT = PROMPT_FILE.read_text(encoding="utf-8")

@@ -83,3 +83,10 @@ Smoke test (Phase A1): `claude-sonnet-5` answered "hi" with 8 input and 14 outpu
 
   Haiku 4.5 uses the older tokenizer, so the same text counts about 15% fewer tokens. The local estimate `len * 2 // 3` gives about 6,200 for this fixture, so it stays a slight overestimate for every model.
 - Usage and real cost of every answer are printed to the console (the `start.bat` window), and shown under each answer in the UI (Phase A3).
+
+## 2026-09-27: UI for two engines (Phase A3)
+
+- The engine is a sidebar radio; "Claude API (paid)" appears only when `ANTHROPIC_API_KEY` is set (from `.env`). Each model has a one-line tip, the main page has a "How to choose the engine and the model" guide (asked for by the user), and an over-budget selection names the models that can read it.
+- `OUTPUT_ALLOWANCE` in the cost estimate went from 2,000 to 1,000 tokens: real short answers used 40–200 output tokens, and 2,000 made follow-ups look ten times dearer than they were.
+- Streamlit Markdown treats text between two `$` as a LaTeX formula (the user saw "0.17 ** for the first question" in italics), so dollar amounts are written as `\$`.
+- Tests never load the real `.env`: the app fixture replaces `dotenv.load_dotenv` and removes the key.

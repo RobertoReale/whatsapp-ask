@@ -85,11 +85,11 @@ new_session = messages + [{"role": "assistant", "content": final.content}]
 
 ## Phase A3: UI
 
-- [ ] Engine picker in the sidebar ("Claude subscription" / "Claude API"). The API option is shown only when a key is set. The model list comes from the selected engine.
-- [ ] If the engine has `count_tokens`, show exact tokens instead of the estimate. If it has `estimate_cost`, show the estimated cost of the first question and of follow-ups.
-- [ ] If the engine has `ask_stream`, stream the answer with `st.write_stream`.
-- [ ] Under each API answer, the real cost of that question.
-- [ ] In-app guidance (asked by the user on 2026-09-27), so someone who only opens the GUI knows what to choose: what each engine is and what it costs (plan limits vs. paid credits), which model fits which question and selection size, how dates and fewer chats save limits or money, that follow-ups are cheaper, and that new conversations resend all the messages.
+- [x] Engine picker in the sidebar ("Claude subscription" / "Claude API"). The API option is shown only when a key is set. The model list comes from the selected engine.
+- [x] If the engine has `count_tokens`, show exact tokens instead of the estimate. If it has `estimate_cost`, show the estimated cost of the first question and of follow-ups.
+- [x] If the engine has `ask_stream`, stream the answer with `st.write_stream`.
+- [x] Under each API answer, the real cost of that question.
+- [x] In-app guidance (asked by the user on 2026-09-27), so someone who only opens the GUI knows what to choose: what each engine is and what it costs (plan limits vs. paid credits), which model fits which question and selection size, how dates and fewer chats save limits or money, that follow-ups are cheaper, and that new conversations resend all the messages.
 
 **Done when:** the user can switch engines and both work end to end.
 

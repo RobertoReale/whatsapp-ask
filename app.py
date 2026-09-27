@@ -3,6 +3,7 @@
 Run from the project folder: `streamlit run app.py` (or double-click start.bat).
 """
 
+import os
 import re
 from datetime import date, datetime
 from pathlib import Path
@@ -18,7 +19,29 @@ from wa.store import connect, get_context, get_messages, import_chat, list_chats
 load_dotenv(Path(__file__).with_name(".env"))   # ANTHROPIC_API_KEY for the API engine; the subscription engine drops it
 DATA_DIR = Path("data")
 TRUNCATED_AT = 39_000          # an export holds at most about 40,000 messages
-engine = ENGINES["subscription"]
+MODEL_TIPS = {"sonnet": "good for most questions", "haiku": "fastest, for small chats and simple questions",
+              "opus": "most capable, for hard questions, uses the most"}
+GUIDE = """
+**Engine**
+- **Claude subscription**: your Claude Pro/Max plan, through Claude Code. No extra cost, but every question uses
+  part of your plan's usage limits (the same as claude.ai, reset every 5 hours).
+- **Claude API (paid)**: your Anthropic API key and credits. Every question costs money: the sidebar shows the
+  estimated cost before you ask, and each answer shows what it really cost. Offered only when a key is in `.env`.
+
+**Model**
+- **Sonnet** (default): good answers for almost every question.
+- **Haiku**: the fastest and cheapest. Fine for small selections and simple questions ("When is…", "Who said…").
+  It cannot read very large selections.
+- **Opus**: the most capable, for hard questions (summaries of long periods, comparisons, subtle details).
+  On the API it costs twice as much as Sonnet; on the subscription it uses your limits faster.
+
+**Save limits and money**
+- The first question of a conversation sends **all** the selected messages. Select only the chats you need and
+  narrow the dates.
+- Follow-up questions in the same conversation weigh much less (on the API, about a tenth of the first question's
+  input cost if you ask within 5 minutes).
+- Changing chats, dates, engine or model, or clicking **New conversation**, starts over and sends everything again.
+"""
 
 st.set_page_config(page_title="WhatsApp Ask", page_icon="💬", layout="wide")
 db = connect(DATA_DIR / "wa.db")   # a new connection per run: sqlite3 must not be shared across threads
@@ -45,11 +68,30 @@ def show_message(m, cited: bool):
     (st.info if cited else st.caption)(line)
 
 
-def show_answer(entry):
+def money(usd: float) -> str:
+    """Dollars for st.markdown: a bare $ starts a LaTeX formula there."""
+    return f"\\${usd:.2f}" if usd >= 0.01 else "less than \\$0.01"
+
+
+def model_label(model: str) -> str:
+    return f"{model} · {next(tip for family, tip in MODEL_TIPS.items() if family in model)}"
+
+
+@st.cache_data(show_spinner="Counting tokens...")   # Streamlit reruns the script on every click
+def count_tokens(engine_key: str, transcript: str, model: str) -> int:
+    return ENGINES[engine_key].count_tokens(transcript, model)
+
+
+def show_answer(entry, text_shown=False):
     if "error" in entry:
         st.error(entry["error"])
         return
-    st.markdown(entry["text"])
+    if not text_shown:
+        st.markdown(entry["text"])
+    if entry.get("cost_usd") is not None:
+        cached = entry["usage"]["cache_read_input_tokens"]
+        st.caption(f"Cost of this question: \\${entry['cost_usd']:.4f}"
+                   + (f" ({cached:,} tokens read from the cache)" if cached else ""))
     if entry["cited"]:
         with st.expander(f"Cited messages ({len(entry['cited'])})"):
             for i, message_id in enumerate(entry["cited"]):
@@ -111,27 +153,51 @@ if selected:
     date_from = left.date_input("From", first, min_value=first, max_value=last, format="DD/MM/YYYY")
     date_to = right.date_input("To", last, min_value=first, max_value=last, format="DD/MM/YYYY")
 
-model = st.sidebar.selectbox("Model", engine.MODELS,
-                             help="sonnet: good answers (default). haiku: faster, fine for small chats and simple "
-                                  "questions. opus: most capable, but uses your plan's limits faster.")
+engine_keys = ["subscription"] + (["api"] if os.environ.get("ANTHROPIC_API_KEY") else [])
+engine_key = st.sidebar.radio("Engine", engine_keys, format_func=lambda k: ENGINES[k].NAME, key="engine",
+                              help="Subscription: your Pro/Max plan, no extra cost, uses the plan's usage limits. "
+                                   "API: your API key, every question costs money. See “How to choose” on the right.")
+if len(engine_keys) == 1:
+    st.sidebar.caption("To use the paid Claude API as well, put your API key in `.env` (see the README) "
+                       "and restart the app.")
+engine = ENGINES[engine_key]
+model = st.sidebar.selectbox("Model", engine.MODELS, format_func=model_label,
+                             help="Sonnet: good answers (default). Haiku: fastest and cheapest, for small chats and "
+                                  "simple questions. Opus: most capable, for hard questions, but costs or uses the "
+                                  "most.")
 
 messages = get_messages(db, selected, date_from, date_to)
 transcript = build_transcript(db, selected, date_from, date_to)
-tokens = estimate_tokens(transcript)
+tokens, exact = estimate_tokens(transcript), False
+if messages and hasattr(engine, "count_tokens"):
+    try:
+        tokens, exact = count_tokens(engine_key, transcript, model), True
+    except engine.EngineError as e:
+        st.sidebar.warning(f"Could not count the tokens exactly, showing an estimate. {e}")
 budget = engine.TOKEN_BUDGET[model]
 blocked = not messages or tokens > budget
 if selected:
-    st.sidebar.markdown(f"**{len(messages):,}** messages selected  \n"
-                        f"~**{tokens:,}** estimated tokens  \n"
-                        f"Usage: **{usage_level(tokens)}**",
-                        help="How much each question weighs on your plan's usage limits "
-                             "(low under 30,000 tokens, medium up to 100,000, high above).")
+    size = f"**{tokens:,}** tokens" if exact else f"~**{tokens:,}** estimated tokens"
+    if hasattr(engine, "estimate_cost"):
+        cost = engine.estimate_cost(tokens, model)
+        st.sidebar.markdown(f"**{len(messages):,}** messages selected  \n{size}  \n"
+                            f"Cost: about **{money(cost['first'])}** for the first question, "
+                            f"**{money(cost['follow_up'])}** for each follow-up",
+                            help="Estimate with an answer of about 1,000 tokens: long answers, such as summaries, cost "
+                                 "a little more. Follow-ups are cheaper only within 5 minutes of the previous "
+                                 "question (the messages stay in Anthropic's cache for 5 minutes).")
+    else:
+        st.sidebar.markdown(f"**{len(messages):,}** messages selected  \n{size}  \n"
+                            f"Usage: **{usage_level(tokens)}**",
+                            help="How much each question weighs on your plan's usage limits "
+                                 "(low under 30,000 tokens, medium up to 100,000, high above).")
     if not messages:
         st.sidebar.warning("No messages in this date range.")
     elif tokens > budget:
+        fits = [m for m in engine.MODELS if engine.TOKEN_BUDGET[m] >= tokens]
         st.sidebar.error(f"This selection is about {tokens:,} tokens, over the {budget:,} limit for {model}. "
-                         "Select fewer chats or a shorter date range.")
-st.sidebar.caption(f"Engine: {engine.NAME}")
+                         + (f"Choose {' or '.join(fits)}, or select" if fits else "Select")
+                         + " fewer chats or a shorter date range.")
 
 # --- Main area: conversation -----------------------------------------------------------------
 
@@ -150,6 +216,8 @@ if not chats:
             "chat name › More › Export chat › Without media, then save the file and upload it here.")
 elif not selected:
     st.info("Choose one or more chats in the sidebar.")
+with st.expander("How to choose the engine and the model", expanded=not state.history):
+    st.markdown(GUIDE)
 
 for entry in state.history:
     with st.chat_message(entry["role"]):
@@ -164,14 +232,20 @@ if question:
     with st.chat_message("user"):
         st.markdown(question)
     with st.chat_message("assistant"):
-        with st.spinner("Claude is reading the chats..."):
-            try:
-                result = engine.ask(transcript, question, session=state.session, model=model)
-            except engine.EngineError as e:
-                entry = {"role": "assistant", "error": str(e)}
-            else:
-                state.session = result["session"]
-                entry = {"role": "assistant", "text": result["text"],
-                         "cited": extract_citations(result["text"], [m["id"] for m in messages])}
+        streamed = hasattr(engine, "ask_stream")
+        try:
+            with st.spinner("Claude is reading the chats..."):
+                if streamed:
+                    stream = engine.ask_stream(transcript, question, session=state.session, model=model)
+                    st.write_stream(stream)
+                    result = stream.result
+                else:
+                    result = engine.ask(transcript, question, session=state.session, model=model)
+        except engine.EngineError as e:
+            entry = {"role": "assistant", "error": str(e)}
+        else:
+            state.session = result["session"]
+            entry = {"role": "assistant", "text": result["text"], "cost_usd": result.get("cost_usd"),
+                     "usage": result["usage"], "cited": extract_citations(result["text"], [m["id"] for m in messages])}
         state.history.append(entry)
-        show_answer(entry)
+        show_answer(entry, text_shown=streamed and "error" not in entry)

@@ -3,11 +3,13 @@
 from datetime import date
 from pathlib import Path
 
+import dotenv
 import pytest
+import streamlit as st
 from streamlit.testing.v1 import AppTest
 
 from wa import store
-from wa.engines import subscription
+from wa.engines import api, subscription
 from wa.engines.subscription import EngineError
 
 PROJECT = Path(__file__).resolve().parent.parent
@@ -30,6 +32,9 @@ class FakeEngine:
 @pytest.fixture
 def app(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)          # the app uses data/ in the current folder
+    monkeypatch.setattr(dotenv, "load_dotenv", lambda *a, **kw: False)   # never load the user's real .env
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    st.cache_data.clear()
     return AppTest.from_file(str(PROJECT / "app.py"), default_timeout=30)
 
 
@@ -134,10 +139,10 @@ def test_selection_indicator_and_dates(app, chats):
 
 
 def test_over_budget_blocks_input(app, chats, monkeypatch):
-    monkeypatch.setattr(subscription, "TOKEN_BUDGET", {"sonnet": 1_000, "haiku": 100_000})
+    monkeypatch.setattr(subscription, "TOKEN_BUDGET", {"sonnet": 1_000, "haiku": 100_000, "opus": 1_000})
     app.run()
     select(app, chats["Marco"])
-    assert "over the 1,000 limit for sonnet" in app.sidebar.error[0].value
+    assert "over the 1,000 limit for sonnet. Choose haiku, or select fewer chats" in app.sidebar.error[0].value
     assert app.chat_input[0].proto.disabled
     app.sidebar.selectbox[0].set_value("haiku").run()
     assert not app.sidebar.error
@@ -245,3 +250,105 @@ def test_empty_message_and_opus(app, chats, monkeypatch):
     assert engine.calls[0]["model"] == "opus"
     cited = app.chat_message[1].expander[0]
     assert "(no text in the export)" in cited.info[0].value
+
+
+class FakeStream:
+    def __init__(self, text, error=None):
+        self.text, self.error, self.result = text, error, None
+
+    def __iter__(self):
+        yield self.text[:3]
+        if self.error:
+            raise self.error
+        yield self.text[3:]
+        cached = 5_000 if self.text.startswith("B") else 0
+        self.result = {"text": self.text, "session": ["history"], "cost_usd": 0.0152,
+                       "usage": {"input_tokens": 10, "output_tokens": 20, "cache_read_input_tokens": cached,
+                                 "cache_creation_input_tokens": 5_000 - cached}}
+
+
+def fake_api(monkeypatch, *streams, tokens=100_000):
+    calls = {"ask": [], "count": []}
+
+    def ask_stream(transcript, question, session=None, model=None):
+        calls["ask"].append({"question": question, "session": session, "model": model})
+        return streams[len(calls["ask"]) - 1]
+
+    def count_tokens(transcript, model):
+        calls["count"].append(model)
+        if isinstance(tokens, Exception):
+            raise tokens
+        return tokens
+
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
+    monkeypatch.setattr(api, "ask_stream", ask_stream)
+    monkeypatch.setattr(api, "count_tokens", count_tokens)
+    monkeypatch.setattr(api, "ask", lambda *a, **kw: pytest.fail("the app must stream"))
+    return calls
+
+
+def test_api_engine_hidden_without_key_and_guide_shown(app, chats):
+    app.run()
+    assert app.sidebar.radio[0].options == ["Claude subscription (claude -p)"]
+    assert "put your API key in `.env`" in sidebar_text(app)
+    assert app.expander[0].label == "How to choose the engine and the model"
+    assert "Haiku" in app.expander[0].markdown[0].value and "Opus" in app.expander[0].markdown[0].value
+    assert app.sidebar.selectbox[0].options[0] == "sonnet · good for most questions"
+
+
+def test_api_engine_counts_costs_streams(app, chats, monkeypatch):
+    calls = fake_api(monkeypatch, FakeStream("A: 670 euro [#27]."), FakeStream("B: dal 5 [#29]."))
+    app.run()
+    select(app, chats["Marco"])
+    assert "Usage: **low**" in sidebar_text(app)                     # subscription is still the default
+    app.sidebar.radio[0].set_value("api").run()
+    assert not app.exception
+    assert app.sidebar.selectbox[0].value == "claude-sonnet-5"
+    text = sidebar_text(app)
+    assert "**100,000** tokens" in text and "estimated" not in text
+    assert "Cost: about **\\$0.26** for the first question, **\\$0.03** for each follow-up" in text
+
+    app.run()                                                       # a rerun does not count again (cached)
+    assert calls["count"] == ["claude-sonnet-5"]
+
+    ask(app, "Quanto?")
+    assert not app.exception
+    assert calls["ask"][0] == {"question": "Quanto?", "session": None, "model": "claude-sonnet-5"}
+    answer = app.chat_message[1]
+    assert [m.value for m in answer.markdown].count("A: 670 euro [#27].") == 1   # streamed once, not repeated
+    assert answer.caption[0].value == "Cost of this question: \\$0.0152"
+    assert answer.expander[0].label == "Cited messages (1)"
+
+    ask(app, "E da quando?")
+    assert calls["ask"][1]["session"] == ["history"]
+    assert "(5,000 tokens read from the cache)" in app.chat_message[3].caption[0].value
+    app.run()                                                       # history re-rendered from the session state
+    assert [m.value for m in app.chat_message[1].markdown][0] == "A: 670 euro [#27]."
+
+    app.sidebar.radio[0].set_value("subscription").run()            # other engine: new conversation
+    assert len(app.chat_message) == 0
+    assert app.sidebar.selectbox[0].value == "sonnet"
+
+
+def test_api_errors(app, chats, monkeypatch):
+    fake_api(monkeypatch, FakeStream("Half an answer", error=api.EngineError("The API rate limit is reached.")),
+             tokens=api.EngineError("Could not reach the Anthropic API."))
+    app.run()
+    select(app, chats["Marco"])
+    app.sidebar.radio[0].set_value("api").run()
+    assert "Could not count the tokens exactly, showing an estimate." in app.sidebar.warning[0].value
+    assert "estimated tokens" in sidebar_text(app)
+    ask(app, "q")
+    assert not app.exception
+    assert "rate limit" in app.chat_message[1].error[0].value
+
+
+def test_api_over_budget_suggests_a_model(app, chats, monkeypatch):
+    fake_api(monkeypatch, tokens=500_000)
+    app.run()
+    select(app, chats["Marco"])
+    app.sidebar.radio[0].set_value("api").run()
+    app.sidebar.selectbox[0].set_value("claude-haiku-4-5").run()
+    error = app.sidebar.error[0].value
+    assert "over the 150,000 limit for claude-haiku-4-5. Choose claude-sonnet-5 or claude-opus-5-5, or select" in error
+    assert app.chat_input[0].proto.disabled
