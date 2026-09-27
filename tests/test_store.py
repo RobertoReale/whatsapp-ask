@@ -3,7 +3,8 @@ from pathlib import Path
 
 import pytest
 
-from wa.store import connect, get_context, get_message, get_messages, import_chat, list_chats
+from wa.store import (connect, delete_chat, get_context, get_message, get_messages, get_messages_by_id, import_chat,
+                      list_chats)
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -131,3 +132,23 @@ def test_context_same_timestamp(db):
     chat_id = import_chat(db, FIXTURES / "iphone_it.zip", name="Calcetto")
     ids = [m["id"] for m in get_messages(db, [chat_id])]
     assert [m["id"] for m in get_context(db, ids[1], before=1, after=1)] == ids[:3]
+
+
+def test_get_messages_by_id(db):
+    marco = import_chat(db, FIXTURES / "android_it.txt", name="Marco")
+    calcetto = import_chat(db, FIXTURES / "iphone_it.zip", name="Calcetto")
+    first_marco = get_messages(db, [marco])[0]["id"]
+    first_calcetto = get_messages(db, [calcetto])[0]["id"]
+    rows = get_messages_by_id(db, [first_calcetto, 99999, first_marco])
+    assert [(r["id"], r["chat_name"]) for r in rows] == [(first_marco, "Marco"), (first_calcetto, "Calcetto")]
+    assert get_messages_by_id(db, []) == []
+
+
+def test_delete_chat(db):
+    marco = import_chat(db, FIXTURES / "android_it.txt", name="Marco")
+    import_chat(db, FIXTURES / "iphone_it.zip", name="Calcetto")
+    assert delete_chat(db, marco) == "android_it.txt"
+    assert [c["name"] for c in list_chats(db)] == ["Calcetto"]
+    assert db.execute("SELECT COUNT(*) FROM messages WHERE chat_id = ?", (marco,)).fetchone()[0] == 0
+    assert db.execute("SELECT COUNT(*) FROM messages").fetchone()[0] == 16
+    assert delete_chat(db, marco) is None

@@ -104,3 +104,20 @@ def get_context(db, message_id, before=2, after=2) -> list[sqlite3.Row]:
     next_ = db.execute(base + "AND (m.ts, m.id) > (?, ?) ORDER BY m.ts, m.id LIMIT ?",
                        (m["chat_id"], m["ts"], m["id"], after)).fetchall()
     return prev[::-1] + [m] + next_
+
+
+def get_messages_by_id(db, message_ids) -> list[sqlite3.Row]:
+    """The messages with these IDs (unknown IDs are skipped), chronological."""
+    ids = list(message_ids)
+    if not ids:
+        return []
+    return db.execute(f"SELECT {MESSAGE_COLUMNS} FROM messages m JOIN chats c ON c.id = m.chat_id "
+                      f"WHERE m.id IN ({','.join('?' * len(ids))}) ORDER BY m.ts, m.id", ids).fetchall()
+
+
+def delete_chat(db, chat_id) -> str | None:
+    """Delete a chat and its messages. Returns the name of the export file it was imported from."""
+    row = db.execute("SELECT source_file FROM chats WHERE id = ?", (chat_id,)).fetchone()
+    with db:
+        db.execute("DELETE FROM chats WHERE id = ?", (chat_id,))   # messages go with it (ON DELETE CASCADE)
+    return row["source_file"] if row else None

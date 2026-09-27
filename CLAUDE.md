@@ -44,6 +44,7 @@ wa/parser.py                  # export .txt/.zip -> list of message dicts
 wa/store.py                   # SQLite: chats and messages tables
 wa/context.py                 # transcript formatting, token estimate, usage level
 wa/citations.py               # extract [#id] citations from answers
+wa/export.py                  # messages and conversations as CSV / TXT / Markdown files for download
 wa/system_prompt.txt          # instructions for Claude when answering about chats (shared by all engines)
 wa/engines/__init__.py        # ENGINES registry: {"subscription": ...} (+ "api" in Milestone 2)
 wa/engines/subscription.py    # Milestone 1: `claude -p`

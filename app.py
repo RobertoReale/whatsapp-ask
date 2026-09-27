@@ -14,14 +14,30 @@ from dotenv import load_dotenv
 from wa.citations import extract_citations
 from wa.context import build_transcript, estimate_tokens, usage_level
 from wa.engines import ENGINES
-from wa.store import connect, get_context, get_messages, import_chat, list_chats
+from wa.export import MIME, by_chat, conversation_to_md, file_stem, to_csv, to_md, to_txt
+from wa.store import (connect, delete_chat, get_context, get_messages, get_messages_by_id, import_chat,
+                      list_chats)
 
 load_dotenv(Path(__file__).with_name(".env"))   # ANTHROPIC_API_KEY for the API engine; the subscription engine drops it
 DATA_DIR = Path("data")
 TRUNCATED_AT = 39_000          # an export holds at most about 40,000 messages
+SEARCH_SHOWN = 100             # word search: messages shown on the page (the downloads have all of them)
 MODEL_TIPS = {"sonnet": "good for most questions", "haiku": "fastest, for small chats and simple questions",
               "opus": "most capable, for hard questions, uses the most"}
 GUIDE = """
+**What you can do**
+- **Ask** anything about the selected chats: facts, summaries, comparisons. Every answer cites the messages it is
+  based on: open **Cited messages** under it to read them in context.
+- **Find the messages about a topic**: ask, for example, "Find all the messages about the rent". Claude finds them
+  even when they use other words. Under the answer, download the cited messages with date and time, full text:
+  **CSV** (opens in Excel), **TXT** (like a WhatsApp export) or **Markdown**. In very long chats Claude may miss a
+  few messages.
+- **Find a word**: **Find messages by word** searches the selected chats for every message containing it. It is
+  exact, instant and free (Claude is not used), and has the same downloads.
+- **Save the conversation**: **Download this conversation** under the last answer saves the questions, the answers
+  and the cited messages as a Markdown file.
+- **Remove a chat** you no longer need: **Remove a chat** at the bottom of the sidebar.
+
 **Engine**
 - **Claude subscription**: your Claude Pro/Max plan, through Claude Code. No extra cost, but every question uses
   part of your plan's usage limits (the same as claude.ai, reset every 5 hours).
@@ -82,7 +98,17 @@ def count_tokens(engine_key: str, transcript: str, model: str) -> int:
     return ENGINES[engine_key].count_tokens(transcript, model)
 
 
-def show_answer(entry, text_shown=False):
+def download_buttons(rows, stem: str, title: str, key: str):
+    """The messages as CSV (Excel), TXT (like a WhatsApp export) and Markdown, full text from the database."""
+    files = {"csv": ("CSV (Excel)", to_csv), "txt": ("TXT", to_txt), "md": ("Markdown", lambda r: to_md(r, title))}
+    with st.container(horizontal=True):
+        for fmt, (label, convert) in files.items():
+            st.download_button(label, convert(rows), f"{stem}.{fmt}", MIME[fmt], key=f"{key}-{fmt}",
+                               icon=":material/download:", on_click="ignore")
+
+
+def show_answer(entry, index: int, text_shown=False):
+    """index: the entry's position in state.history (the question is just before it)."""
     if "error" in entry:
         st.error(entry["error"])
         return
@@ -93,6 +119,10 @@ def show_answer(entry, text_shown=False):
         st.caption(f"Cost of this question: \\${entry['cost_usd']:.4f}"
                    + (f" ({cached:,} tokens read from the cache)" if cached else ""))
     if entry["cited"]:
+        st.caption(f"Download the {len(entry['cited'])} cited messages, with date, time and full text:")
+        question = state.history[index - 1]["text"]
+        download_buttons(get_messages_by_id(db, entry["cited"]), f"cited-messages-{file_stem(question)}",
+                         f"Messages cited for: {question}", key=f"cited-{index}")
         with st.expander(f"Cited messages ({len(entry['cited'])})"):
             for i, message_id in enumerate(entry["cited"]):
                 context = get_context(db, message_id)
@@ -156,7 +186,7 @@ if selected:
 engine_keys = ["subscription"] + (["api"] if os.environ.get("ANTHROPIC_API_KEY") else [])
 engine_key = st.sidebar.radio("Engine", engine_keys, format_func=lambda k: ENGINES[k].NAME, key="engine",
                               help="Subscription: your Pro/Max plan, no extra cost, uses the plan's usage limits. "
-                                   "API: your API key, every question costs money. See “How to choose” on the right.")
+                                   "API: your API key, every question costs money. See “How to use it” on the right.")
 if len(engine_keys) == 1:
     st.sidebar.caption("To use the paid Claude API as well, put your API key in `.env` (see the README) "
                        "and restart the app.")
@@ -199,6 +229,22 @@ if selected:
                          + (f"Choose {' or '.join(fits)}, or select" if fits else "Select")
                          + " fewer chats or a shorter date range.")
 
+if chats:
+    with st.sidebar.expander("Remove a chat"):
+        doomed = st.selectbox("Chat to remove", list(chats), format_func=lambda i: chats[i]["name"], index=None,
+                              placeholder="Choose a chat", key="doomed")
+        st.caption("Deletes its messages from the app and the copy of the export saved in `data/`. "
+                   "Nothing changes on your phone. You can import it again later.")
+        if st.button("Remove", disabled=doomed is None, key="remove"):
+            source = delete_chat(db, doomed)
+            if source:
+                (DATA_DIR / source).unlink(missing_ok=True)
+            state.removed = chats[doomed]["name"]
+            del state.doomed
+            st.rerun()
+if "removed" in state:
+    st.sidebar.success(f"Removed “{state.pop('removed')}”.")
+
 # --- Main area: conversation -----------------------------------------------------------------
 
 selection = (engine.NAME, model, tuple(sorted(selected)), date_from, date_to)
@@ -208,7 +254,7 @@ if state.get("selection") != selection:   # other chats, dates or model: start o
 
 top_left, top_right = st.columns([4, 1])
 top_left.subheader("Ask about your chats")
-if top_right.button("New conversation", disabled=not state.history):
+if top_right.button("New conversation", disabled=not state.history, key="new"):
     new_conversation()
 
 if not chats:
@@ -216,15 +262,32 @@ if not chats:
             "chat name › More › Export chat › Without media, then save the file and upload it here.")
 elif not selected:
     st.info("Choose one or more chats in the sidebar.")
-with st.expander("How to choose the engine and the model", expanded=not state.history):
+with st.expander("How to use it: what you can do, engine and model", expanded=not state.history):
     st.markdown(GUIDE)
 
-for entry in state.history:
+if messages:
+    with st.expander("Find messages by word (exact and free: Claude is not used)"):
+        term = st.text_input("Word or part of a word", key="search", placeholder="e.g. affitto").strip()
+        if term:
+            found = by_chat(m for m in messages if term.casefold() in m["text"].casefold())
+            st.markdown(f"**{len(found):,}** messages contain “{escape(term)}” in the selected chats and dates."
+                        + (f" Showing the first {SEARCH_SHOWN}: download them all." if len(found) > SEARCH_SHOWN
+                           else ""))
+            if found:
+                download_buttons(found, f"messages-{file_stem(term)}", f"Messages containing “{term}”", key="search")
+            chat = None
+            for m in found[:SEARCH_SHOWN]:
+                if m["chat_name"] != chat:
+                    chat = m["chat_name"]
+                    st.markdown(f"**{escape(chat)}**")
+                show_message(m, cited=False)
+
+for index, entry in enumerate(state.history):
     with st.chat_message(entry["role"]):
         if entry["role"] == "user":
             st.markdown(entry["text"])
         else:
-            show_answer(entry)
+            show_answer(entry, index)
 
 question = st.chat_input("Ask a question about the selected chats", disabled=blocked)
 if question:
@@ -248,4 +311,14 @@ if question:
             entry = {"role": "assistant", "text": result["text"], "cost_usd": result.get("cost_usd"),
                      "usage": result["usage"], "cited": extract_citations(result["text"], [m["id"] for m in messages])}
         state.history.append(entry)
-        show_answer(entry, text_shown=streamed and "error" not in entry)
+        show_answer(entry, len(state.history) - 1, text_shown=streamed and "error" not in entry)
+
+if state.history:   # after the new answer, so the file includes it
+    names = ", ".join(chats[i]["name"] for i in selected)
+    header = (f"Chats: {names} · {date_from:%d/%m/%Y}–{date_to:%d/%m/%Y} · {engine.NAME}, {model} · "
+              f"saved on {datetime.now():%d/%m/%Y %H:%M}")
+    st.download_button("Download this conversation", conversation_to_md(state.history, header,
+                                                                        lambda ids: get_messages_by_id(db, ids)),
+                       f"whatsapp-ask-{datetime.now():%Y-%m-%d-%H%M}.md", MIME["md"], key="conversation",
+                       icon=":material/download:", on_click="ignore",
+                       help="Questions, answers and cited messages, as a Markdown file.")

@@ -48,11 +48,13 @@ From a terminal instead: `.venv\Scripts\python -m streamlit run app.py`.
 2. **Select**: choose the chats and, if you like, a date range. The sidebar shows how many messages are selected, their size in tokens and either the usage level (low, medium or high; subscription) or the estimated cost (API).
 3. **Ask**: type a question in any language. Claude answers in the language of your question.
 4. **Check the sources**: open **Cited messages** under an answer to see each cited message, highlighted, with 2 messages before and after it.
+5. **Save the results**: under an answer, download its cited messages with date, time and full text as **CSV** (opens in Excel), **TXT** (like a WhatsApp export) or **Markdown**. **Download this conversation**, under the last answer, saves the questions, the answers and their cited messages as Markdown. Files go to your browser's downloads folder.
 
 Follow-up questions continue the same conversation. **New conversation** starts over. Changing the chats, the dates, the engine or the model also starts over.
 
 Tips:
 
+- To collect every message about something, ask "Find all the messages about the rent" and download the cited messages. Claude also finds messages that use other words, but in very long chats it may miss a few. For an exact word, open **Find messages by word** instead: it searches the selected chats and dates without Claude, so it is instant, free and complete, and it has the same downloads.
 - Ask for exact facts ("What time are we meeting on Saturday?"), searches ("Find the messages where Marco talks about the rent"), summaries ("What did the group decide in September?") or comparisons across chats ("In which chat did we talk about the flight?").
 - If a selection is too large, the app blocks it: choose fewer chats or a shorter date range.
 - **Sonnet** (`sonnet`, `claude-sonnet-5`) gives good answers and is the default. **Haiku** (`haiku`, `claude-haiku-4-5`) is the fastest and cheapest, fine for small chats and simple questions, but it cannot read very large selections. **Opus** (`opus`, `claude-opus-5-5`) is the most capable, but uses your plan's limits faster and, on the API, costs twice as much as Sonnet: keep it for hard questions.
@@ -89,7 +91,8 @@ The sidebar shows the exact number of tokens and the estimated cost before you a
 
 Everything stays on your computer, except the messages you send to Claude with each question.
 
-- **`data/`** in this folder: your uploaded exports and the database (`wa.db`). Delete the folder to remove everything the app imported. It is never added to git.
+- **`data/`** in this folder: your uploaded exports and the database (`wa.db`). **Remove a chat**, at the bottom of the sidebar, deletes one chat's messages and its export copy. Delete the folder to remove everything the app imported. It is never added to git.
+- **Downloaded files** (cited messages, search results, conversations) contain your messages: they go to your browser's downloads folder, outside the app.
 - **Claude Code's session files**: Claude Code saves every conversation, including the chat messages sent, under `%USERPROFILE%\.claude\projects\` in a folder whose name ends with `whatsapp-ask-runtime` (for example `C--Users-<you>-AppData-Local-Temp-whatsapp-ask-runtime`). They are local only. Delete that folder to remove them.
 - **Claude API**: the selected messages are sent to the Anthropic API with each question, and nothing is saved on your computer apart from `data/`.
 - The app is only reachable from this computer (`localhost`), not from other devices on your network.

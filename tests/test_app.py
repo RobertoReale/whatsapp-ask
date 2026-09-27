@@ -8,7 +8,7 @@ import pytest
 import streamlit as st
 from streamlit.testing.v1 import AppTest
 
-from wa import store
+from wa import export, store
 from wa.engines import api, subscription
 from wa.engines.subscription import EngineError
 
@@ -291,7 +291,7 @@ def test_api_engine_hidden_without_key_and_guide_shown(app, chats):
     app.run()
     assert app.sidebar.radio[0].options == ["Claude subscription (claude -p)"]
     assert "put your API key in `.env`" in sidebar_text(app)
-    assert app.expander[0].label == "How to choose the engine and the model"
+    assert app.expander[0].label == "How to use it: what you can do, engine and model"
     assert "Haiku" in app.expander[0].markdown[0].value and "Opus" in app.expander[0].markdown[0].value
     assert app.sidebar.selectbox[0].options[0] == "sonnet · good for most questions"
 
@@ -352,3 +352,70 @@ def test_api_over_budget_suggests_a_model(app, chats, monkeypatch):
     error = app.sidebar.error[0].value
     assert "over the 150,000 limit for claude-haiku-4-5. Choose claude-sonnet-5 or claude-opus-5-5, or select" in error
     assert app.chat_input[0].proto.disabled
+
+
+def spy_csv(monkeypatch):
+    """IDs of the messages in each CSV the app builds (the downloads' content is tested in test_export.py)."""
+    seen, real = [], export.to_csv
+    monkeypatch.setattr(export, "to_csv", lambda rows: seen.append([r["id"] for r in rows]) or real(rows))
+    return seen
+
+
+def test_download_cited_messages_and_conversation(app, chats, monkeypatch):
+    seen = spy_csv(monkeypatch)
+    fake(monkeypatch, "670 euro [#28][#27], see also [#99999].", "No idea.")
+    app.run()
+    select(app, chats["Marco"])
+    assert not app.get("download_button")
+    ask(app, "Quanto è l'affitto?")
+    assert not app.exception
+    assert "Download the 2 cited messages" in app.chat_message[1].caption[0].value
+    assert seen[-1] == [27, 28]                        # from the database, chronological
+    buttons = app.get("download_button")
+    assert [b.proto.label for b in buttons] == ["CSV (Excel)", "TXT", "Markdown", "Download this conversation"]
+    assert [b.proto.url.rsplit(".", 1)[1] for b in buttons] == ["csv", "txt", "md", "md"]
+    assert all(b.proto.ignore_rerun for b in buttons)   # downloading does not rerun the app
+    ask(app, "E il gas?")                              # no citations: no downloads under this answer
+    assert len(app.get("download_button")) == 4
+
+
+def test_word_search(app, chats, monkeypatch):
+    seen = spy_csv(monkeypatch)
+    app.run()
+    assert not app.text_input                          # nothing selected, no search
+    select(app, chats["Marco"], chats["Calcetto"])
+    app.text_input(key="search").set_value(" AFFITTO ").run()
+    search = next(e for e in app.expander if e.label.startswith("Find messages by word"))
+    assert search.markdown[0].value.startswith("**5** messages contain “AFFITTO”")
+    assert search.markdown[1].value == "**Marco**"
+    assert len(search.caption) == 5
+    assert len(seen[-1]) == 5
+    assert len(app.get("download_button")) == 3
+
+    app.text_input(key="search").set_value("a").run()  # in most messages: only the first 100 are shown
+    search = next(e for e in app.expander if e.label.startswith("Find messages by word"))
+    assert "Showing the first 100: download them all." in search.markdown[0].value
+    assert len(search.caption) == 100 and len(seen[-1]) > 100
+    assert [m.value for m in search.markdown[1:]] == ["**Calcetto**", "**Marco**"]
+
+    app.text_input(key="search").set_value("zzzz").run()
+    search = next(e for e in app.expander if e.label.startswith("Find messages by word"))
+    assert search.markdown[0].value.startswith("**0** messages contain")
+    assert not app.get("download_button")
+
+
+def test_remove_chat(app, chats):
+    Path("data/android_it.txt").write_text("the copy saved on upload", encoding="utf-8")
+    app.run()
+    select(app, chats["Marco"], chats["Calcetto"])
+    assert app.sidebar.button(key="remove").proto.disabled
+    app.sidebar.selectbox(key="doomed").set_value(chats["Marco"]).run()
+    app.sidebar.button(key="remove").click().run()
+    assert not app.exception
+    assert "Removed “Marco”." in sidebar_text(app)
+    assert not Path("data/android_it.txt").exists()
+    assert app.sidebar.multiselect[0].options == ["Calcetto · 16 messages · 01/09/26–03/09/26"]
+    assert app.sidebar.multiselect[0].value == [chats["Calcetto"]]   # the other chat stays selected
+    assert app.sidebar.selectbox(key="doomed").value is None
+    app.run()
+    assert "Removed" not in sidebar_text(app)

@@ -101,3 +101,16 @@ The user ran the API engine (`claude-sonnet-5`) on their real 1:1 chat (1,794 me
 - The big group (9,115 messages) counts 303,301 tokens with Haiku 4.5's older tokenizer, so Haiku is blocked, and the error suggests `claude-sonnet-5` or `claude-opus-5-5`.
 - As in Milestone 1, the user checked a few representative questions instead of the whole table.
 - `.env` is ignored and has never been in any commit.
+
+## 2026-09-27: downloads, word search, removing chats
+
+Asked for by the user ("save in a file all the messages about X, with date and time"), outside `PLAN.md` and `docs/PLAN-API.md`.
+
+- Claude has no tools (`--tools ""`, no tools on the API), so it never writes files. The app builds them: under each answer, the cited messages as CSV, TXT and Markdown, **taken from the database** (full text, exact date and time), not copied from Claude's answer. Claude only chooses which messages are relevant.
+- Claude may miss a few messages in very long chats, so there is also **Find messages by word**: a plain case-insensitive substring search (`str.casefold`) over the selected messages, in Python. No FTS5 or index: the selection is already in memory, and SQLite `LIKE` ignores case only for ASCII (`È` ≠ `è`). The page shows the first 100 results; the downloads have all of them.
+- CSV: `;` separator and a UTF-8 BOM, so Excel with Italian settings opens it in columns with accents intact (with `,` it puts everything in one column). A cell starting with `=`, `+`, `-` or `@` gets a leading `'`: otherwise Excel reads it as a formula ("+39 333…" becomes `#NAME?`, and a chat message could carry a working `=HYPERLINK`).
+- TXT follows the WhatsApp export line format (`dd/mm/yy, hh:mm - Sender: text`) with a `=== Chat ===` line above each chat. Every file groups messages by chat, then sorts them by time.
+- Markdown escapes the characters that would change the text (`<Media omessi>` would otherwise vanish as an HTML tag) and includes the `#ID`, so the conversation file's `[#27]` citations can be matched.
+- System prompt rule 3 now asks for **every** relevant message (not a sample), each with its `[#ID]`: without the brackets the app finds no citations and there is nothing to download.
+- Download buttons use `on_click="ignore"`, so saving a file does not rerun the app. **Download this conversation** is rendered after the new answer, so the file includes it.
+- **Remove a chat** (sidebar) deletes the chat (its messages go with `ON DELETE CASCADE`) and the export copy the app saved in `data/` on upload (`source_file`, a bare file name).
