@@ -157,12 +157,12 @@ def parse_export(path: str) -> list[dict]:
 
 ## Phase 2: Storage (`wa/store.py`)
 
-- [ ] `connect(path="data/wa.db") -> sqlite3.Connection`: creates `data/` if needed, sets `PRAGMA foreign_keys = ON` and `row_factory = sqlite3.Row`, creates the schema. The app opens a new connection per Streamlit run (connections must not be shared across threads).
-- [ ] `import_chat(db, file_path, name=None) -> chat_id`: uses the parser and saves everything in one transaction. Re-importing a chat with the same name **replaces** it (old messages deleted), never duplicates it.
-- [ ] `list_chats(db)`: id, name, message count, first and last message date.
-- [ ] `get_messages(db, chat_ids, date_from=None, date_to=None)` in chronological order; `date_to` is inclusive (whole day).
-- [ ] `get_message(db, message_id)` and `get_context(db, message_id, before=2, after=2)`: the message plus its neighbours in the same chat, each with its chat name.
-- [ ] `tests/test_store.py` with `:memory:`: import, re-import without duplicates, date filters (including the last day), context at the start and end of a chat.
+- [x] `connect(path="data/wa.db") -> sqlite3.Connection`: creates `data/` if needed, sets `PRAGMA foreign_keys = ON` and `row_factory = sqlite3.Row`, creates the schema. The app opens a new connection per Streamlit run (connections must not be shared across threads).
+- [x] `import_chat(db, file_path, name=None) -> chat_id`: uses the parser and saves everything in one transaction. Re-importing a chat with the same name **replaces** it (old messages deleted), never duplicates it.
+- [x] `list_chats(db)`: id, name, message count, first and last message date.
+- [x] `get_messages(db, chat_ids, date_from=None, date_to=None)` in chronological order; `date_to` is inclusive (whole day).
+- [x] `get_message(db, message_id)` and `get_context(db, message_id, before=2, after=2)`: the message plus its neighbours in the same chat, each with its chat name.
+- [x] `tests/test_store.py` with `:memory:`: import, re-import without duplicates, date filters (including the last day), context at the start and end of a chat.
 
 **Done when:** tests pass, and a test imports the 3 main fixtures and lists them.
 
@@ -300,6 +300,9 @@ Main area:
 - [ ] Engine errors are shown with `st.error`, and the conversation is kept.
 - [ ] Under each answer, an expander "Cited messages": for each ID, chat, date, sender, text, with 2 messages before and after (the cited one highlighted).
 - [ ] "New conversation" button. Changing the selected chats, dates or model clears `session` and history automatically.
+
+Launcher:
+- [ ] `start.bat` in the project root: double-clicking it runs `streamlit run app.py` with the `.venv` Python and opens the browser, so the user never needs a terminal to use the app.
 
 **Done when:** the user can do everything in the browser: import, select, ask, get an answer, open the cited messages. Ask the user to try it; you cannot see their real chats.
 
