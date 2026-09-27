@@ -92,7 +92,7 @@ All of these were verified on 2026-09-26 with Claude Code 2.1.221 on Windows; se
 - Call the `claude` CLI, never the `anthropic` SDK or an API key, in Milestone 1.
 - Resolve the executable with `shutil.which("claude")` (Windows needs the full path).
 - Remove `ANTHROPIC_API_KEY` from the subprocess environment. If it is set, Claude Code bills the paid API instead of the subscription. Also remove `CLAUDECODE`.
-- Flags: `-p --output-format json --model <sonnet|haiku> --tools "" --safe-mode --system-prompt-file wa/system_prompt.txt`. `--tools ""` means no tools, so Claude only reads and answers. `--safe-mode` disables CLAUDE.md files, skills, hooks, plugins and MCP servers while keeping subscription auth.
+- Flags: `-p --output-format json --model <sonnet|haiku|opus> --tools "" --safe-mode --system-prompt-file wa/system_prompt.txt`. `--tools ""` means no tools, so Claude only reads and answers. `--safe-mode` disables CLAUDE.md files, skills, hooks, plugins and MCP servers while keeping subscription auth.
 - Run the subprocess with `cwd` set to a folder **outside the project** (`<tempdir>/whatsapp-ask-runtime`).
 - Send the whole prompt on **stdin**, with no positional prompt argument: transcript first, then the question. This avoids Windows command-line limits and quoting problems. Always use `encoding="utf-8"` (Windows otherwise uses cp1252 and emoji crash).
 - Follow-ups: `--resume <session_id>`, with only the new question on stdin. Changing the selected chats, dates, model or engine starts a new conversation.

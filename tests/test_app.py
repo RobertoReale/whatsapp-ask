@@ -228,3 +228,20 @@ def test_truncated_export_warning(app, tmp_path):
     assert not app.exception
     warning = app.sidebar.warning[0].value
     assert "“Gruppo” has 39,000 messages" in warning and "starts on 01/01/2025" in warning
+
+
+def test_empty_message_and_opus(app, chats, monkeypatch):
+    # Real exports contain lines like "14/09/26, 18:05 - Anna: " with no text at all.
+    db = store.connect("data/wa.db")
+    empty_id = db.execute("INSERT INTO messages (chat_id, ts, sender, text) VALUES (?, '2026-09-26T23:59:00', 'Anna', '')",
+                          (chats["Marco"],)).lastrowid
+    db.commit()
+    db.close()
+    engine = fake(monkeypatch, f"Vuoto [#{empty_id}]")
+    app.run()
+    select(app, chats["Marco"])
+    app.sidebar.selectbox[0].set_value("opus").run()
+    ask(app, "q")
+    assert engine.calls[0]["model"] == "opus"
+    cited = app.chat_message[1].expander[0]
+    assert "(no text in the export)" in cited.info[0].value

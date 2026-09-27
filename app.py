@@ -38,7 +38,8 @@ def day(ts: str) -> date:
 def show_message(m, cited: bool):
     when = datetime.fromisoformat(m["ts"]).strftime("%d/%m/%Y %H:%M")
     who = "(system)" if m["is_system"] else f"**{escape(m['sender'])}**"
-    line = f"`#{m['id']}` {when} · {who}  \n{escape(m['text']).replace(chr(10), '  ' + chr(10))}"
+    text = escape(m["text"]).replace("\n", "  \n") or "_(no text in the export)_"   # WhatsApp writes some messages empty
+    line = f"`#{m['id']}` {when} · {who}  \n{text}"
     (st.info if cited else st.caption)(line)
 
 
@@ -109,7 +110,8 @@ if selected:
     date_to = right.date_input("To", last, min_value=first, max_value=last, format="DD/MM/YYYY")
 
 model = st.sidebar.selectbox("Model", engine.MODELS,
-                             help="sonnet: best answers. haiku: faster, fine for small chats and simple questions.")
+                             help="sonnet: good answers (default). haiku: faster, fine for small chats and simple "
+                                  "questions. opus: most capable, but uses your plan's limits faster.")
 
 messages = get_messages(db, selected, date_from, date_to)
 transcript = build_transcript(db, selected, date_from, date_to)

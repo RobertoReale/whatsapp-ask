@@ -35,3 +35,23 @@ A ~60-line standard-library parser (in `PLAN.md`, Phase 1) handled both fixtures
 ### Terms of use
 
 The subscription engine is for the user's personal use on their own machine. Do not turn it into a service for other people: that needs the API engine and the user's own API key.
+
+## 2026-09-27: token estimate and budgets calibrated (Phase 6)
+
+Real `usage` input tokens (`input_tokens` + `cache_creation_input_tokens` + `cache_read_input_tokens`) from `claude -p` with Sonnet, next to the original estimate `len(text) // 3`:
+
+| Transcript | Characters (about) | `len // 3` | Real input tokens | Characters per token |
+| --- | --- | --- | --- | --- |
+| Synthetic fixture `android_it.txt` (150 messages) | 9,300 | 3,107 | 5,992 | 1.56 |
+| User's real group chat (9,115 messages) | 640,000 | 213,387 | 375,747 | 1.70 |
+
+The `[#ID] dd/mm/yy hh:mm` header on every line makes transcripts much denser than ordinary text, so `len // 3` was about 1.8–1.9× too low. These numbers replace the ones in `PLAN.md` Phases 3 and 4:
+
+- `estimate_tokens` is now `len(text) * 2 // 3` (1.5 characters per token): slightly above the real count in both cases, so still conservative.
+- `TOKEN_BUDGET`: `sonnet` 600,000 (context window 1,000,000, as reported in `modelUsage`; the real 375,747-token chat worked, and the margin leaves room for follow-ups and answers). `haiku` stays at 150,000 (Haiku 4.5 context window: 200,000, as reported in `modelUsage`).
+- `usage_level` thresholds unchanged (30,000 / 100,000), but they now apply to a realistic token count, so the same selection shows a higher level than before.
+
+## 2026-09-27: Opus added, empty messages
+
+- **Opus** was added as a third model at the user's request (`MODELS = ["sonnet", "haiku", "opus"]`; `sonnet` stays the default). A real `claude -p --model opus` call with the app's flags works on the user's plan: the model is `claude-opus-5`, with a 1,000,000-token context window, so `TOKEN_BUDGET["opus"]` is 600,000 like Sonnet. Opus uses the plan's limits faster, so the UI says so.
+- **Empty messages**: real Android exports contain lines like `14/09/26, 18:05 - Anna: ` with nothing after the colon (272 of 9,115 and 70 of 1,794 messages in the user's two chats; probably content WhatsApp does not export, such as view-once media). The parser is right to keep them as messages with empty text. The UI shows them as "(no text in the export)".

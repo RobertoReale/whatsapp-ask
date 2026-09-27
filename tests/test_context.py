@@ -76,8 +76,14 @@ def test_transcript_date_filter(db):
 
 def test_estimate_tokens():
     assert estimate_tokens("") == 0
-    assert estimate_tokens("abcdef") == 2
-    assert estimate_tokens("x" * 3001) == 1000
+    assert estimate_tokens("abcdef") == 4
+    assert estimate_tokens("x" * 3001) == 2000
+
+
+def test_estimate_is_calibrated(db):
+    # Real input tokens measured with `claude -p` on this fixture: 5,992 (see docs/DECISIONS.md).
+    chat_id = import_chat(db, FIXTURES / "android_it.txt", name="Marco")
+    assert 5_992 <= estimate_tokens(build_transcript(db, [chat_id])) <= 5_992 * 1.2
 
 
 def test_usage_level():

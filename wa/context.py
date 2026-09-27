@@ -34,8 +34,11 @@ def build_transcript(db, chat_ids, date_from=None, date_to=None) -> str:
 
 
 def estimate_tokens(text: str) -> int:
-    """Conservative local estimate: without an API key there is no token-counting endpoint."""
-    return len(text) // 3
+    """Conservative local estimate: without an API key there is no token-counting endpoint.
+
+    1.5 characters per token, calibrated on real `usage` (see docs/DECISIONS.md): the
+    `[#ID] dd/mm/yy hh:mm` headers make transcripts denser than ordinary text."""
+    return len(text) * 2 // 3
 
 
 def usage_level(tokens: int) -> str:

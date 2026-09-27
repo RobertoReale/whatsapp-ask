@@ -12,8 +12,8 @@ from datetime import date
 from pathlib import Path
 
 NAME = "Claude subscription (claude -p)"
-MODELS = ["sonnet", "haiku"]
-TOKEN_BUDGET = {"sonnet": 150_000, "haiku": 150_000}
+MODELS = ["sonnet", "haiku", "opus"]
+TOKEN_BUDGET = {"sonnet": 600_000, "haiku": 150_000, "opus": 600_000}   # context windows: 1M, 200k, 1M
 
 RUNTIME_DIR = Path(tempfile.gettempdir()) / "whatsapp-ask-runtime"   # outside the project
 PROMPT_FILE = Path(__file__).resolve().parent.parent / "system_prompt.txt"

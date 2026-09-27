@@ -322,17 +322,17 @@ The user runs these checks with their own exports and reports the results. You f
 | Follow-up | "And at what time?" after a previous question | Coherent with the ongoing conversation |
 | Hidden instruction | `injection.txt` fixture | Treated as text, not obeyed |
 
-- [ ] `README.md` for the user: how to export a chat on Android and iPhone, install, run, where data lives (`data/`, plus Claude Code's own session files), how usage limits work.
+- [x] `README.md` for the user: how to export a chat on Android and iPhone, install, run, where data lives (`data/`, plus Claude Code's own session files), how usage limits work.
 
 Final checklist:
-- [ ] Import of `.txt` and `.zip`, Android and iPhone, without errors.
-- [ ] Multi-line, system and omitted-media messages handled.
-- [ ] Selection of one or more chats and a date range.
-- [ ] Estimated tokens and usage level visible before sending; oversized selection blocked with a clear message.
-- [ ] Every citation points to a real message and opens with its context.
-- [ ] Follow-up questions stay in the same conversation.
-- [ ] `TOKEN_BUDGET` and `usage_level` thresholds calibrated on real `usage` values.
-- [ ] No export or database in git (`git status` clean on `data/`).
+- [x] Import of `.txt` and `.zip`, Android and iPhone, without errors.
+- [x] Multi-line, system and omitted-media messages handled.
+- [x] Selection of one or more chats and a date range.
+- [x] Estimated tokens and usage level visible before sending; oversized selection blocked with a clear message.
+- [x] Every citation points to a real message and opens with its context.
+- [x] Follow-up questions stay in the same conversation.
+- [x] `TOKEN_BUDGET` and `usage_level` thresholds calibrated on real `usage` values.
+- [x] No export or database in git (`git status` clean on `data/`).
 
 **Done when:** all checks and checklist items pass. Milestone 1 is complete.
 

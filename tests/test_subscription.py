@@ -48,8 +48,8 @@ def fake_which(monkeypatch):
 def test_contract():
     assert ENGINES == {"subscription": subscription}
     assert subscription.NAME == "Claude subscription (claude -p)"
-    assert subscription.MODELS == ["sonnet", "haiku"]
-    assert subscription.TOKEN_BUDGET == {"sonnet": 150_000, "haiku": 150_000}
+    assert subscription.MODELS == ["sonnet", "haiku", "opus"]
+    assert subscription.TOKEN_BUDGET == {"sonnet": 600_000, "haiku": 150_000, "opus": 600_000}
     assert issubclass(EngineError, Exception)
     assert subscription.PROMPT_FILE.read_text(encoding="utf-8").startswith(
         "You answer questions about the user's WhatsApp conversations.")
