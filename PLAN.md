@@ -287,22 +287,22 @@ Rules:
 ## Phase 5: UI (`app.py`)
 
 Sidebar:
-- [ ] Multi-file upload (`st.file_uploader`, `.txt` and `.zip`). Files are saved in `data/` and imported. Show parser errors with `st.error`. Import each file once per upload: use `st.session_state` so Streamlit reruns do not re-import it.
-- [ ] Multi-select chat list with message count and date range.
-- [ ] Date range (default: everything).
-- [ ] Model picker from `engine.MODELS` (`sonnet` default; `haiku` for small chats and simple questions).
-- [ ] Indicator: selected messages, estimated tokens, usage level (low/medium/high). Over `TOKEN_BUDGET[model]`: clear message and chat input disabled.
-- [ ] Warning if an imported chat looks truncated (39,000+ messages): show the date of its first message.
+- [x] Multi-file upload (`st.file_uploader`, `.txt` and `.zip`). Files are saved in `data/` and imported. Show parser errors with `st.error`. Import each file once per upload: use `st.session_state` so Streamlit reruns do not re-import it.
+- [x] Multi-select chat list with message count and date range.
+- [x] Date range (default: everything).
+- [x] Model picker from `engine.MODELS` (`sonnet` default; `haiku` for small chats and simple questions).
+- [x] Indicator: selected messages, estimated tokens, usage level (low/medium/high). Over `TOKEN_BUDGET[model]`: clear message and chat input disabled.
+- [x] Warning if an imported chat looks truncated (39,000+ messages): show the date of its first message.
 
 Main area:
-- [ ] Chat with `st.chat_input` and `st.chat_message`; history and `session` in `st.session_state`.
-- [ ] While waiting: `st.spinner("Claude is reading the chats...")` (no streaming in this milestone).
-- [ ] Engine errors are shown with `st.error`, and the conversation is kept.
-- [ ] Under each answer, an expander "Cited messages": for each ID, chat, date, sender, text, with 2 messages before and after (the cited one highlighted).
-- [ ] "New conversation" button. Changing the selected chats, dates or model clears `session` and history automatically.
+- [x] Chat with `st.chat_input` and `st.chat_message`; history and `session` in `st.session_state`.
+- [x] While waiting: `st.spinner("Claude is reading the chats...")` (no streaming in this milestone).
+- [x] Engine errors are shown with `st.error`, and the conversation is kept.
+- [x] Under each answer, an expander "Cited messages": for each ID, chat, date, sender, text, with 2 messages before and after (the cited one highlighted).
+- [x] "New conversation" button. Changing the selected chats, dates or model clears `session` and history automatically.
 
 Launcher:
-- [ ] `start.bat` in the project root: double-clicking it runs `streamlit run app.py` with the `.venv` Python and opens the browser, so the user never needs a terminal to use the app.
+- [x] `start.bat` in the project root: double-clicking it runs `streamlit run app.py` with the `.venv` Python and opens the browser, so the user never needs a terminal to use the app.
 
 **Done when:** the user can do everything in the browser: import, select, ask, get an answer, open the cited messages. Ask the user to try it; you cannot see their real chats.
 

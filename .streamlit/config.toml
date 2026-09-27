@@ -1,0 +1,7 @@
+# Private chats: only this computer can open the app.
+[server]
+address = "localhost"
+showEmailPrompt = false
+
+[browser]
+gatherUsageStats = false
