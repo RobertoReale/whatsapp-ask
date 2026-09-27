@@ -170,8 +170,8 @@ def parse_export(path: str) -> list[dict]:
 
 ## Phase 3: Transcript and token estimate (`wa/context.py`)
 
-- [ ] `format_message(m)`: one compact line, `[#1234] 26/09/26 14:32 Marco: text`. System messages: `[#1235] 26/09/26 14:33 (system) text`. Media: keep the placeholder text. Multi-line text stays multi-line (continuation lines have no `[#`).
-- [ ] `build_transcript(db, chat_ids, date_from, date_to) -> str`: each chat in its own XML block, as Anthropic recommends for multiple documents:
+- [x] `format_message(m)`: one compact line, `[#1234] 26/09/26 14:32 Marco: text`. System messages: `[#1235] 26/09/26 14:33 (system) text`. Media: keep the placeholder text. Multi-line text stays multi-line (continuation lines have no `[#`).
+- [x] `build_transcript(db, chat_ids, date_from, date_to) -> str`: each chat in its own XML block, as Anthropic recommends for multiple documents:
 
 ```xml
 <documents>
@@ -185,9 +185,9 @@ def parse_export(path: str) -> list[dict]:
 </documents>
 ```
 
-- [ ] `estimate_tokens(text) -> int`: conservative local estimate `len(text) // 3` (without an API key there is no token-counting endpoint).
-- [ ] `usage_level(tokens) -> str`: `"low"` under 30,000, `"medium"` up to 100,000, `"high"` above. Tells the user how much a question weighs on the plan's limits.
-- [ ] `tests/test_context.py`: line format, XML structure with 2 chats, date filter, token estimate, usage levels.
+- [x] `estimate_tokens(text) -> int`: conservative local estimate `len(text) // 3` (without an API key there is no token-counting endpoint).
+- [x] `usage_level(tokens) -> str`: `"low"` under 30,000, `"medium"` up to 100,000, `"high"` above. Tells the user how much a question weighs on the plan's limits.
+- [x] `tests/test_context.py`: line format, XML structure with 2 chats, date filter, token estimate, usage levels.
 
 **Done when:** tests pass, and for a selection you can get the message count, estimated tokens and usage level.
 
