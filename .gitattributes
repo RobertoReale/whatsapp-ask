@@ -1,0 +1,2 @@
+# start.sh must keep LF line endings, or Linux/macOS cannot run it
+*.sh text eol=lf

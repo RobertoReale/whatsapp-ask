@@ -6,6 +6,7 @@ from pathlib import Path
 import dotenv
 import pytest
 import streamlit as st
+from streamlit.runtime.memory_media_file_storage import MemoryMediaFileStorage
 from streamlit.testing.v1 import AppTest
 
 from wa import export, store
@@ -138,13 +139,28 @@ def test_selection_indicator_and_dates(app, chats):
     assert app.chat_input[0].proto.disabled
 
 
-def test_over_budget_blocks_input(app, chats, monkeypatch):
+def test_over_budget_switches_to_search_or_blocks_input(app, chats, monkeypatch):
     monkeypatch.setattr(subscription, "TOKEN_BUDGET", {"sonnet": 1_000, "haiku": 100_000, "opus": 1_000})
     app.run()
     select(app, chats["Marco"])
-    assert "over the 1,000 limit for sonnet. Choose haiku, or select fewer chats" in app.sidebar.error[0].value
+    reading = app.sidebar.radio[1]
+    assert reading.label == "What Claude reads" and reading.value == "search"   # over the budget: search by default
+    assert not app.sidebar.error
+    assert "Usage: up to **low** per question" in sidebar_text(app)
+    warning = app.warning[0].value                              # the limits, always visible in the main area
+    assert warning.startswith("**Claude does not read the whole selection**: it is about")
+    assert "over the 1,000 limit for sonnet" in warning
+    assert "can **miss messages**" in warning and "**cannot summarize a period or count**" in warning
+    assert not app.chat_input[0].proto.disabled
+    assert app.chat_input[0].proto.placeholder.startswith("Ask about a topic, a person or an event")
+    reading.set_value("all").run()
+    assert not app.warning                                      # reads everything: no limits to warn about
+    error = app.sidebar.error[0].value
+    assert "over the 1,000 limit for sonnet. Choose haiku, or select fewer chats" in error
+    assert "or let Claude read only the messages about the question" in error
     assert app.chat_input[0].proto.disabled
     app.sidebar.selectbox[0].set_value("haiku").run()
+    assert app.sidebar.radio[1].value == "all"                  # fits again: back to all the messages
     assert not app.sidebar.error
     assert not app.chat_input[0].proto.disabled
 
@@ -221,18 +237,66 @@ def test_engine_error_keeps_conversation(app, chats, monkeypatch):
     assert len(app.chat_message) == 6
 
 
-def test_truncated_export_warning(app, tmp_path):
-    lines = [f"{1 + i // 1440 % 28:02d}/0{1 + i // 40320}/25, {i // 60 % 24:02d}:{i % 60:02d} - Anna: msg {i}"
-             for i in range(39_000)]
-    big = tmp_path / "Chat WhatsApp con Gruppo.txt"
-    big.write_text("\n".join(lines), encoding="utf-8")
+def rent_ids():
     db = store.connect("data/wa.db")
-    store.import_chat(db, big)
+    ids = [r["id"] for r in db.execute("SELECT id FROM messages WHERE text LIKE '%affitto%' ORDER BY id")]
     db.close()
+    return ids
+
+
+def test_search_mode_first_question_and_follow_up(app, chats, monkeypatch):
+    rent = rent_ids()
+    engine = fake(monkeypatch, "- affitt\n- canone", f"670 euro [#{rent[3]}], not sent [#1].",
+                  "meteo", "Pioggia.")
     app.run()
+    select(app, chats["Marco"], chats["Calcetto"])
+    app.sidebar.radio[1].set_value("search").run()               # also for selections that fit
+    assert "you chose to let it read only the messages about each question" in app.warning[0].value
+    ask(app, "Quanto è l'affitto?")
     assert not app.exception
-    warning = app.sidebar.warning[0].value
-    assert "“Gruppo” has 39,000 messages" in warning and "starts on 01/01/2025" in warning
+    words_call, answer_call = engine.calls[:2]
+    assert words_call["model"] == "sonnet" and words_call["session"] is None
+    assert "Do not answer the question below yet" in words_call["question"]
+    assert "Question: Quanto è l'affitto?" in words_call["question"]
+    assert words_call["transcript"].startswith("Chats: ") and "Marco" in words_call["transcript"]
+    assert answer_call["model"] == "sonnet" and answer_call["session"] is None
+    sent = answer_call["transcript"]
+    assert all(f"[#{i}]" in sent for i in rent)                  # every match, with its neighbours
+    assert "<source>Calcetto</source>" not in sent               # no match in the other chat
+    assert "meteo" not in sent                                   # far from any match
+    assert answer_call["question"].startswith("Note: the chats are too long to send whole")
+    assert answer_call["question"].endswith("Quanto è l'affitto?")
+    answer = app.chat_message[1]
+    assert answer.caption[0].value.startswith("Searched for: affitt, canone. 5 messages contain these words")
+    assert answer.caption[0].value.endswith("it did not see the rest of the chat.")
+    assert answer.expander[0].label == "Cited messages (1)"      # [#1] was not sent to Claude
+    assert app.chat_message[0].markdown[0].value == "Quanto è l'affitto?"   # the question as typed
+
+    ask(app, "E il meteo?")
+    words_call, answer_call = engine.calls[2:]
+    assert "Earlier question in this conversation: Quanto è l'affitto?" in words_call["question"]
+    assert answer_call["session"] == "sess-2"
+    assert answer_call["transcript"] == sent                     # the API engine keeps it in its cache
+    extra = answer_call["question"]
+    assert extra.startswith("More messages from the same chats") and "Hai visto il meteo" in extra
+    assert not any(f"[#{i}]" in extra for i in rent)             # Claude already has them
+    assert "Searched for: meteo" in app.chat_message[3].caption[0].value
+
+    app.sidebar.radio[1].set_value("all").run()                  # other reading: new conversation
+    assert len(app.chat_message) == 0
+
+
+def test_search_mode_no_words_or_no_matches(app, chats, monkeypatch):
+    engine = fake(monkeypatch, "Here are the words:\n", "zzzzz", "affitt", "Ecco [#27].")
+    app.run()
+    select(app, chats["Marco"])
+    app.sidebar.radio[1].set_value("search").run()
+    ask(app, "q1")
+    assert "Claude gave no words to search for" in app.chat_message[1].error[0].value
+    ask(app, "q2")
+    assert "No message contains the words Claude searched for (zzzzz)" in app.chat_message[3].error[0].value
+    ask(app, "q3")                                               # the errors did not start a conversation
+    assert engine.calls[3]["session"] is None and len(engine.calls) == 4
 
 
 def test_empty_message_and_opus(app, chats, monkeypatch):
@@ -349,9 +413,30 @@ def test_api_over_budget_suggests_a_model(app, chats, monkeypatch):
     select(app, chats["Marco"])
     app.sidebar.radio[0].set_value("api").run()
     app.sidebar.selectbox[0].set_value("claude-haiku-4-5").run()
+    assert app.sidebar.radio[1].value == "search" and not app.sidebar.error
+    app.sidebar.radio[1].set_value("all").run()
     error = app.sidebar.error[0].value
     assert "over the 150,000 limit for claude-haiku-4-5. Choose claude-sonnet-5 or claude-opus-5-5, or select" in error
     assert app.chat_input[0].proto.disabled
+
+
+def test_api_search_mode_adds_the_words_cost(app, chats, monkeypatch):
+    calls = fake_api(monkeypatch, FakeStream("A: 670 euro [#27]."))
+    monkeypatch.setattr(api, "TOKEN_BUDGET", {**api.TOKEN_BUDGET, "claude-sonnet-5": 1_000})
+    words_calls = []
+    monkeypatch.setattr(api, "ask", lambda transcript, question, session=None, model=None: words_calls.append(model)
+                        or {"text": "affitt", "session": [], "usage": {}, "cost_usd": 0.001})
+    app.run()
+    select(app, chats["Marco"])
+    app.sidebar.radio[0].set_value("api").run()
+    assert app.sidebar.radio[1].value == "search"
+    assert calls["count"] == []                                    # far over the budget: not counted
+    assert "estimated tokens  \nCost: up to about **\\$0.03** per question" in sidebar_text(app)
+    ask(app, "Quanto?")
+    assert not app.exception
+    assert words_calls == ["claude-sonnet-5"]
+    assert calls["ask"][0]["model"] == "claude-sonnet-5" and calls["ask"][0]["question"].startswith("Note:")
+    assert app.chat_message[1].caption[1].value == "Cost of this question: \\$0.0162"   # words + answer
 
 
 def spy_csv(monkeypatch):
@@ -361,8 +446,20 @@ def spy_csv(monkeypatch):
     return seen
 
 
+def spy_downloads(monkeypatch):
+    """(file name, type) of each file offered for download: the browser saves it under this name.
+
+    Not the extension in the button's URL: Streamlit guesses it from the type, and Linux without
+    /etc/mime.types knows no extension for text/markdown."""
+    files, real = [], MemoryMediaFileStorage.load_and_get_id
+    monkeypatch.setattr(MemoryMediaFileStorage, "load_and_get_id", lambda self, data, mimetype, kind, filename=None:
+                        files.append((filename, mimetype)) or real(self, data, mimetype, kind, filename))
+    return files
+
+
 def test_download_cited_messages_and_conversation(app, chats, monkeypatch):
     seen = spy_csv(monkeypatch)
+    files = spy_downloads(monkeypatch)
     fake(monkeypatch, "670 euro [#28][#27], see also [#99999].", "No idea.")
     app.run()
     select(app, chats["Marco"])
@@ -373,7 +470,8 @@ def test_download_cited_messages_and_conversation(app, chats, monkeypatch):
     assert seen[-1] == [27, 28]                        # from the database, chronological
     buttons = app.get("download_button")
     assert [b.proto.label for b in buttons] == ["CSV (Excel)", "TXT", "Markdown", "Download this conversation"]
-    assert [b.proto.url.rsplit(".", 1)[1] for b in buttons] == ["csv", "txt", "md", "md"]
+    assert [(Path(name).suffix, mime) for name, mime in files[-4:]] == [
+        (".csv", "text/csv"), (".txt", "text/plain"), (".md", "text/markdown"), (".md", "text/markdown")]
     assert all(b.proto.ignore_rerun for b in buttons)   # downloading does not rerun the app
     ask(app, "E il gas?")                              # no citations: no downloads under this answer
     assert len(app.get("download_button")) == 4

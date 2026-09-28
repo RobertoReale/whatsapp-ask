@@ -61,7 +61,8 @@ def test_markdown_shows_text_literally():
 
 def test_conversation_markdown():
     history = [{"role": "user", "text": "Quanto è l'affitto?"},
-               {"role": "assistant", "text": "720 euro [#27].", "cited": [27]},
+               {"role": "assistant", "text": "720 euro [#27].", "cited": [27],
+                "search": {"words": ["affitt", "*canone*"], "found": 5, "sent": 20, "left_out": 0}},
                {"role": "user", "text": "E poi?"},
                {"role": "assistant", "error": "Your plan's usage limit is reached."}]
     looked_up = []
@@ -70,7 +71,8 @@ def test_conversation_markdown():
     assert data == (
         "# WhatsApp Ask conversation\n\nChats: Marco\n\n---\n\n"
         "### Question\n\nQuanto è l'affitto?\n\n---\n\n"
-        "### Answer\n\n720 euro [#27].\n\n**Cited messages**\n\n#### Marco\n\n"
+        "### Answer\n\n720 euro [#27].\n\n_Searched for: affitt, \\*canone\\*. Claude read only the messages containing these words "
+        "and the messages around them._\n\n**Cited messages**\n\n#### Marco\n\n"
         "- `#27` **01/09/2026 09:33** · Marco: L'affitto passa da 650 a 720 euro\n\n---\n\n"
         "### Question\n\nE poi?\n\n---\n\n"
         "### Answer\n\n_Error: Your plan's usage limit is reached._\n"

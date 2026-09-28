@@ -18,7 +18,7 @@ Only the phone apps can export chats (WhatsApp Web and Desktop cannot). Always c
 
 Limits of WhatsApp exports:
 
-- An export holds at most about 40,000 recent messages. The app warns you when a chat looks cut off and shows the date it starts from.
+- Very long chats export fine (a two-year chat with over 160,000 messages did): see [very long chats](#very-long-chats).
 - Chats with **Advanced Chat Privacy** turned on cannot be exported.
 - Photos, videos and voice notes are not read. They appear as "media omitted".
 
@@ -36,13 +36,22 @@ python -m venv .venv
 .venv\Scripts\python -m pip install -r requirements.txt
 ```
 
-(macOS/Linux: `python3 -m venv .venv` and `.venv/bin/python -m pip install -r requirements.txt`.)
+On Linux and macOS:
+
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+```
+
+(On Debian and Ubuntu, if `venv` is missing, install it first: `sudo apt install python3-venv`.)
 
 ## 3. Use it
 
 On Windows, double-click **`start.bat`**. The app opens in your browser. To stop it, close the black window.
 
-From a terminal instead: `.venv\Scripts\python -m streamlit run app.py`.
+On Linux and macOS, run **`./start.sh`** in a terminal in this folder. The app opens in your browser. To stop it, press Ctrl+C.
+
+From a terminal instead: `.venv\Scripts\python -m streamlit run app.py` (Linux/macOS: `.venv/bin/python -m streamlit run app.py`).
 
 1. **Import**: in the sidebar, upload one or more `.txt` or `.zip` exports. Uploading a chat with the same name again replaces the old copy.
 2. **Select**: choose the chats and, if you like, a date range. The sidebar shows how many messages are selected, their size in tokens and either the usage level (low, medium or high; subscription) or the estimated cost (API).
@@ -50,14 +59,30 @@ From a terminal instead: `.venv\Scripts\python -m streamlit run app.py`.
 4. **Check the sources**: open **Cited messages** under an answer to see each cited message, highlighted, with 2 messages before and after it.
 5. **Save the results**: under an answer, download its cited messages with date, time and full text as **CSV** (opens in Excel), **TXT** (like a WhatsApp export) or **Markdown**. **Download this conversation**, under the last answer, saves the questions, the answers and their cited messages as Markdown. Files go to your browser's downloads folder.
 
-Follow-up questions continue the same conversation. **New conversation** starts over. Changing the chats, the dates, the engine or the model also starts over.
+Follow-up questions continue the same conversation. **New conversation** starts over. Changing the chats, the dates, the engine, the model or **What Claude reads** also starts over.
 
 Tips:
 
 - To collect every message about something, ask "Find all the messages about the rent" and download the cited messages. Claude also finds messages that use other words, but in very long chats it may miss a few. For an exact word, open **Find messages by word** instead: it searches the selected chats and dates without Claude, so it is instant, free and complete, and it has the same downloads.
 - Ask for exact facts ("What time are we meeting on Saturday?"), searches ("Find the messages where Marco talks about the rent"), summaries ("What did the group decide in September?") or comparisons across chats ("In which chat did we talk about the flight?").
-- If a selection is too large, the app blocks it: choose fewer chats or a shorter date range.
+- If a selection is too large to send whole, the app lets Claude read only the messages about each question: see [very long chats](#very-long-chats).
 - **Sonnet** (`sonnet`, `claude-sonnet-5`) gives good answers and is the default. **Haiku** (`haiku`, `claude-haiku-4-5`) is the fastest and cheapest, fine for small chats and simple questions, but it cannot read very large selections. **Opus** (`opus`, `claude-opus-5-5`) is the most capable, but uses your plan's limits faster and, on the API, costs twice as much as Sonnet: keep it for hard questions.
+
+## Very long chats
+
+A model can read about 15,000–20,000 messages at once (600,000 tokens on the subscription, 800,000 on the API). Two years of daily messages can be ten times more. For those, **What Claude reads** in the sidebar has two choices:
+
+- **All the selected messages**: Claude reads everything selected. The most complete answers, but only if the selection fits.
+- **Only the messages about the question**: chosen automatically when the selection is too large. For each question, Claude first chooses the words to search for (synonyms and word stems included), the app finds every message that contains them, and Claude reads only those, each with the 3 messages before and after it, up to about 100,000 tokens. Under the answer you see the words searched and how many messages Claude read. Follow-up questions search again and add what they find.
+
+The second choice is good for questions about a topic, a person or an event ("When did we talk about moving in together?"). Its limits, which the app also shows above the conversation whenever it is on:
+
+- Claude never sees the whole chat, so it **cannot summarize a period or count** over it ("what happened in 2025", "how many times did we argue", "how did things change"). For that, narrow the dates until **All the selected messages** fits, and ask period by period.
+- It can **miss messages** that talk about the topic in words Claude did not think of. For an exact word, **Find messages by word** is complete.
+- "I found nothing" only means that none of the words matched: the messages may still exist.
+- If too many messages match, the least relevant are left out, and the app says how many.
+
+Each question makes two calls: a short one for the words and the answer. On the API, the cost shown under the answer includes both (about $0.25 for a full 100,000 tokens with Sonnet).
 
 ## Usage limits
 
@@ -74,8 +99,8 @@ Use it if you have no Pro/Max plan, if your plan's limits run out, or if you wan
 
 1. On [platform.claude.com](https://platform.claude.com), add some credit in **Billing** (a few dollars are plenty) and set a **monthly spend limit** in **Settings › Limits**.
 2. In **Settings › API Keys**, click **Create Key** and choose a **workspace** (for example "Default"). A key without a workspace does not work with this app.
-3. In this folder, copy `.env.example` to `.env`, open it with Notepad and paste the key after `ANTHROPIC_API_KEY=` (PowerShell: `Copy-Item .env.example .env; notepad .env`).
-4. Restart the app (close the black window and double-click `start.bat`). **Claude API (paid)** now appears under **Engine** in the sidebar.
+3. In this folder, copy `.env.example` to `.env`, open it with Notepad and paste the key after `ANTHROPIC_API_KEY=` (PowerShell: `Copy-Item .env.example .env; notepad .env`; Linux/macOS: `cp .env.example .env`, then edit `.env`).
+4. Restart the app (close the black window and double-click `start.bat`; Linux/macOS: Ctrl+C, then `./start.sh`). **Claude API (paid)** now appears under **Engine** in the sidebar.
 
 What it costs (prices of September 2026, in US dollars): the first question sends all the selected messages, and follow-ups asked within 5 minutes read them from Anthropic's cache for about a tenth of the price.
 
@@ -85,7 +110,7 @@ What it costs (prices of September 2026, in US dollars): the first question send
 | A big group (9,000 messages, about 375,000 tokens) | Sonnet | about $0.95 | about $0.08 |
 | The same big group | Opus | about $1.90 | about $0.10 |
 
-The sidebar shows the exact number of tokens and the estimated cost before you ask. Each answer shows its real cost, and the black `start.bat` window prints it too. The `.env` file stays on your computer and is never added to git.
+The sidebar shows the exact number of tokens and the estimated cost before you ask. Each answer shows its real cost, and the black `start.bat` window (or the `start.sh` terminal) prints it too. The `.env` file stays on your computer and is never added to git.
 
 ## Where your data lives
 
@@ -93,7 +118,7 @@ Everything stays on your computer, except the messages you send to Claude with e
 
 - **`data/`** in this folder: your uploaded exports and the database (`wa.db`). **Remove a chat**, at the bottom of the sidebar, deletes one chat's messages and its export copy. Delete the folder to remove everything the app imported. It is never added to git.
 - **Downloaded files** (cited messages, search results, conversations) contain your messages: they go to your browser's downloads folder, outside the app.
-- **Claude Code's session files**: Claude Code saves every conversation, including the chat messages sent, under `%USERPROFILE%\.claude\projects\` in a folder whose name ends with `whatsapp-ask-runtime` (for example `C--Users-<you>-AppData-Local-Temp-whatsapp-ask-runtime`). They are local only. Delete that folder to remove them.
+- **Claude Code's session files**: Claude Code saves every conversation, including the chat messages sent, under `%USERPROFILE%\.claude\projects\` in a folder whose name ends with `whatsapp-ask-runtime` (for example `C--Users-<you>-AppData-Local-Temp-whatsapp-ask-runtime`; on Linux and macOS the folder is under `~/.claude/projects/`). They are local only. Delete that folder to remove them.
 - **Claude API**: the selected messages are sent to the Anthropic API with each question, and nothing is saved on your computer apart from `data/`.
 - The app is only reachable from this computer (`localhost`), not from other devices on your network.
 
@@ -108,7 +133,7 @@ WhatsApp Ask is for your own personal use on your own computer. Messages are sen
 | Your plan's usage limit is reached | Wait for the reset, or select fewer chats or dates. |
 | Claude took too long | Select fewer chats or a shorter date range. |
 | No WhatsApp messages found in … | The file is not a WhatsApp export. Export the chat again from the phone. |
-| The .venv folder is missing (from `start.bat`) | Run the two install commands above. |
+| The .venv folder is missing (from `start.bat` or `start.sh`) | Run the two install commands above. |
 | No **Claude API** option under Engine | Put your key in `.env` (see [the paid API](#optional-the-paid-claude-api)) and restart the app. |
 | The API key in .env is not valid | Create a new key in the Claude Console and paste it in `.env`. |
 | … not scoped to a workspace … | Create a new key inside a workspace (for example "Default") and paste it in `.env`. |

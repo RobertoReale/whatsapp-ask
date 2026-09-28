@@ -115,7 +115,7 @@ class AnswerStream:
                  "cache_creation_input_tokens": u.cache_creation_input_tokens or 0,
                  "cache_read_input_tokens": u.cache_read_input_tokens or 0}
         cost = cost_usd(usage, self.model)
-        print(f"[api] {self.model} usage {usage} cost ${cost:.4f}", flush=True)   # shows in the start.bat window
+        print(f"[api] {self.model} usage {usage} cost ${cost:.4f}", flush=True)   # shows in the start.bat / start.sh window
         self.result = {
             "text": "".join(b.text for b in final.content if b.type == "text"),
             # Append-only: the assistant turn is stored exactly as returned, thinking blocks included.

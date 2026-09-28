@@ -77,6 +77,9 @@ def conversation_to_md(history, header: str, cited_messages) -> str:
             lines += ["### Answer", "", f"_Error: {entry['error']}_"]
         else:
             lines += ["### Answer", "", entry["text"]]
+            if "search" in entry:
+                lines += ["", f"_Searched for: {_md(', '.join(entry['search']['words']))}. Claude read only the "
+                          f"messages containing these words and the messages around them._"]
             if entry["cited"]:
                 lines += ["", "**Cited messages**", "", *md_list(cited_messages(entry["cited"]), "####")]
     return "\n".join(lines) + "\n"

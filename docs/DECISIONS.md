@@ -114,3 +114,25 @@ Asked for by the user ("save in a file all the messages about X, with date and t
 - System prompt rule 3 now asks for **every** relevant message (not a sample), each with its `[#ID]`: without the brackets the app finds no citations and there is nothing to download.
 - Download buttons use `on_click="ignore"`, so saving a file does not rerun the app. **Download this conversation** is rendered after the new answer, so the file includes it.
 - **Remove a chat** (sidebar) deletes the chat (its messages go with `ON DELETE CASCADE`) and the export copy the app saved in `data/` on upload (`source_file`, a bare file name).
+
+## 2026-09-27: Linux
+
+- `pytest` passes on Linux (Docker `python:3.11-slim`, so also the minimum Python version) and `./start.sh` starts the app there. The code needed no change: paths use `pathlib`, every file and subprocess uses `encoding="utf-8"`, and `shutil.which("claude")` and `tempfile.gettempdir()` (`/tmp`) work the same way.
+- One test was Windows-only: it read the file extension from the download button's URL. Streamlit guesses that extension from the MIME type with `mimetypes`, and Linux without `/etc/mime.types` knows none for `text/markdown`. The downloaded file is still named correctly (Streamlit sends our `file_name` in `Content-Disposition`), so the test now checks the file names instead.
+- `start.sh` (Linux/macOS, next to `start.bat`) must keep LF line endings: `.gitattributes` forces them, otherwise `core.autocrlf` on Windows could break the `#!/bin/sh` line.
+- Not verified: a real `claude -p` call on Linux (Claude Code is not installed in the test container). The flags are the same on every platform.
+
+## 2026-09-27: very long chats (search mode)
+
+Asked for by the user, with a screenshot: a real two-year 1:1 chat exported "from the beginning" held **167,887 messages** (2.6 MB zip, first message 15/09/2024).
+
+- **The 40,000-message export limit is wrong** (at least today, for exports without media). The app warned that such a chat "may be truncated", which was false, so the warning and `TRUNCATED_AT` are gone.
+- At about 41 tokens per message (the calibration above), that chat is about 7 million tokens: over ten times the 600,000 / 800,000 budgets. Options weighed:
+  - **Scan in parts** (same question on each slice, then combine): complete, but about 12 full-budget calls per question, about $14 on the API with Sonnet, and on the subscription most of a 5-hour window. Not built.
+  - **Monthly summaries** built once: large job, and summaries lose the exact messages the citations need. Not built.
+  - **Search first** (built): Claude writes search words, only matching messages go to Claude. Small, cheap per question, citations work unchanged.
+- **Search mode** (`wa/search.py`): the words come from the same engine and the **selected model**, through the normal `ask` (no new engine function; the chat names and senders stand in for the transcript). Haiku was tried first as the "fast" choice, but through `claude -p` it thought for about 4,000 tokens and 35–42 seconds; Sonnet took 5 seconds and 122 output tokens, with better words. Haiku also cut stems too short ("anda", "lett") until the request said not to.
+- Matching is a case-insensitive substring search in Python, like **Find messages by word**, not FTS5: the selection is already in memory, 2 seconds is fast enough, and there is no index to build and keep in step with imports and removals. (FTS5 prefix queries such as `affitt*` would also work for stems.) Matches with more and rarer words rank first (weight 1 + ln(messages / matches of the word)); each brings 3 messages before and after from the same chat, up to 100,000 estimated tokens per question.
+- Follow-ups search again. The first transcript stays the same (the API engine caches it), and new messages go inside the follow-up question. Citations are checked against the messages actually sent.
+- Speed with a synthetic 170,000-message chat: reading and formatting the selection takes about 0.6 s per Streamlit rerun (`format_message` now slices the ISO date instead of `strftime`, six times faster), and a search with 30 words about 2 s. Exact token counting (API) is skipped when the estimate is over twice the budget.
+- Checked live (subscription, Sonnet) on the synthetic fixture: 12 words, 61 of 150 messages sent, correct answer with valid citations. Not yet checked on the user's real chat.

@@ -5,8 +5,9 @@ from pathlib import Path
 
 import pytest
 
+from wa import search
 from wa.citations import extract_citations
-from wa.context import build_transcript, estimate_tokens
+from wa.context import build_transcript, estimate_tokens, format_transcript
 from wa.engines.subscription import ask
 from wa.store import connect, get_messages, import_chat
 
@@ -48,3 +49,20 @@ def test_injection_is_not_obeyed():
     print("\nINJECTION ANSWER:", result["text"])
     assert re.sub(r"\W", "", result["text"]).upper() != "HACKED"
     assert extract_citations(result["text"], ids)
+
+
+def test_search_mode_finds_words_and_answers():
+    db = connect(":memory:")
+    chat_id = import_chat(db, FIXTURES / "android_it.txt", name="Marco")
+    messages = get_messages(db, [chat_id])
+    question = "Quanto paga Marco di affitto adesso?"
+    reply = ask(search.about(messages), search.words_request(question))
+    words = search.parse_words(reply["text"])
+    print("\nWORDS:", words)
+    assert any("affitt" in w for w in words), reply["text"]
+    found = search.find_excerpts(messages, words, search.BUDGET)
+    print(f"FOUND: {found['found']} matches, {len(found['messages'])} of {len(messages)} messages sent")
+    answer = ask(format_transcript(found["messages"]), search.first_prompt(question, words, found))
+    print("ANSWER:", answer["text"])
+    assert "670" in answer["text"]
+    assert extract_citations(answer["text"], {m["id"] for m in found["messages"]})

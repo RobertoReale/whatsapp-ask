@@ -22,7 +22,7 @@ Milestone 2 (paid API engine) is in `docs/PLAN-API.md`. Do not start it here, bu
 ## Known constraints
 
 - Only the phone apps can export a chat. WhatsApp Web/Desktop cannot.
-- An export holds at most about 40,000 recent messages without media (about 10,000 with media).
+- ~~An export holds at most about 40,000 recent messages without media~~: disproved on 2026-09-27, a real export held 167,887 messages (see `docs/DECISIONS.md`).
 - Chats with "Advanced Chat Privacy" turned on cannot be exported.
 - Italian exports use day/month dates. Android: `26/09/26, 14:32 - Marco: text` in a `.txt` file. iPhone: `[26/09/26, 14:32:10] Marco: text` in `_chat.txt` inside a `.zip`. Omitted media: Android `<Media omessi>`; iPhone `‎immagine omessa`, `‎video omesso`, `‎audio omesso`, `‎documento omesso`, `‎sticker omesso` (each with a leading U+200E). English exports: `<Media omitted>`, `image omitted`, etc.
 - iPhone system messages look like `[ts] Group name: ‎text`: the text after `Name: ` starts with U+200E. Android system messages have no `Name: ` at all.
@@ -342,8 +342,23 @@ Final checklist:
 
 1. **Milestone 2: paid API engine**: `docs/PLAN-API.md`.
 2. Streaming for the subscription engine (`--output-format stream-json --verbose --include-partial-messages`).
-3. Chats over the budget: SQLite FTS5 full-text search so only relevant messages go to Claude.
+3. ~~Chats over the budget: SQLite FTS5 full-text search so only relevant messages go to Claude.~~ Done as search mode (`wa/search.py`), without FTS5: see below and `docs/DECISIONS.md`.
 4. Voice notes: export with media + local transcription with Whisper.
 5. Optional anonymization of names and phone numbers before sending.
 6. Live WhatsApp connection starting from a fork of lharries/whatsapp-mcp (Terms of Service risk).
 7. Packaged desktop app.
+
+---
+
+## Extra: very long chats (search mode)
+
+Asked for by the user on 2026-09-27, after importing a two-year chat of 167,887 messages (about 7 million tokens, over ten times any model's budget).
+
+- [x] Sidebar choice **What Claude reads**: all the selected messages, or only the messages about the question. Over the budget, the second is chosen automatically instead of blocking the question.
+- [x] Search mode: Claude (the selected model) writes the search words; the app finds the messages that contain them (case-insensitive substring, like **Find messages by word**), ranks them (more and rarer words first) and sends each with 3 messages before and after, up to 100,000 estimated tokens.
+- [x] Follow-ups search again; only messages Claude does not have yet go with the question. Citations are checked against the messages actually sent.
+- [x] Under each answer: the words, the matches and the messages sent, and how many matches did not fit. The API cost includes the words call.
+- [x] The "export may be truncated" warning (39,000+ messages) removed: it was wrong.
+
+**Done when:** a question about a topic in a chat over the budget gets an answer with valid citations. Checked live on the synthetic fixture; the user checks it on the real chat.
+
